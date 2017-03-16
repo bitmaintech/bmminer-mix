@@ -198,7 +198,10 @@
 #define NORMAL_BLOCK_MARKER				0x01
 
 // ATTENTION: if MEM size is changed, must change this micro definition too!!!   use MAX size (BYTE) - 16 MB as FPGA start memory address
-#define PHY_MEM_NONCE2_JOBID_ADDRESS_XILINX    	((512-16)*1024*1024)		// XILINX use 512MB memory
+#define PHY_MEM_NONCE2_JOBID_ADDRESS_XILINX_1GB    		((1024-16)*1024*1024)
+#define PHY_MEM_NONCE2_JOBID_ADDRESS_XILINX_512MB    	((512-16)*1024*1024)		// XILINX use 512MB memory
+#define PHY_MEM_NONCE2_JOBID_ADDRESS_XILINX_256MB    	((256-16)*1024*1024)		// XILINX use 512MB memory
+
 #define PHY_MEM_NONCE2_JOBID_ADDRESS_C5    		((1024-16)*1024*1024)
 extern unsigned int PHY_MEM_NONCE2_JOBID_ADDRESS;
 
@@ -206,8 +209,8 @@ extern unsigned int PHY_MEM_NONCE2_JOBID_ADDRESS;
 #define PHY_MEM_JOB_START_ADDRESS_2		(PHY_MEM_JOB_START_ADDRESS_1 + JOB_STORE_SPACE)
 
 #undef R4		// if defined , for R4  63 chips
-#define S9_PLUS	// if defined , for T9  57 chips
-#undef S9_63	// if defined , for S9  63 chips
+#undef S9_PLUS	// if defined , for T9  57 chips
+#define S9_63	// if defined , for S9  63 chips
 #undef T9_18 	// if defined , for T9+  18 chips
 
 #undef USE_FIXED_FREQ_FROM_CONF	// if defined, we will use fixed freq from config file, and will not use freq in PIC

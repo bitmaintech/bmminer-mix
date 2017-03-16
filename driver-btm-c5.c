@@ -35,6 +35,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/sysinfo.h>
 
 #include "elist.h"
 #include "miner.h"
@@ -272,7 +273,7 @@ signed char getMeddleOffsetForTestPatten(int chainIndex)
 	return middle_Offset[chainIndex][0];
 }
 
-unsigned int PHY_MEM_NONCE2_JOBID_ADDRESS=PHY_MEM_NONCE2_JOBID_ADDRESS_XILINX;	// set to XILINX as default
+unsigned int PHY_MEM_NONCE2_JOBID_ADDRESS=PHY_MEM_NONCE2_JOBID_ADDRESS_XILINX_1GB;	// set to XILINX as default
 bool isC5_Board()
 {
   FILE *fd;
@@ -8920,6 +8921,7 @@ int bitmain_c5_init(struct init_config config)
     unsigned int data = 0;
 	bool testRet;
 	int testCounter=0;
+	struct sysinfo si;
 	char logstr[256];
 
 #ifdef DISABLE_FINAL_TEST	// if disable test mode, we need set two value and save into files on flash
@@ -8938,8 +8940,26 @@ int bitmain_c5_init(struct init_config config)
 	}
 	else
 	{
-		PHY_MEM_NONCE2_JOBID_ADDRESS=PHY_MEM_NONCE2_JOBID_ADDRESS_XILINX;
-		sprintf(logstr,"This is XILINX board. will fix memory size to 512MB\n");
+		sysinfo(&si);
+		
+		if(si.totalram > 1000000000)
+		{
+			PHY_MEM_NONCE2_JOBID_ADDRESS=PHY_MEM_NONCE2_JOBID_ADDRESS_XILINX_1GB;
+
+			sprintf(logstr, "Detect 1GB control board of XILINX\n");
+		}
+		else if(si.totalram > 500000000)
+		{
+			PHY_MEM_NONCE2_JOBID_ADDRESS=PHY_MEM_NONCE2_JOBID_ADDRESS_XILINX_512MB;
+
+			sprintf(logstr, "Detect 512MB control board of XILINX\n");
+		}
+		else
+		{
+			PHY_MEM_NONCE2_JOBID_ADDRESS=PHY_MEM_NONCE2_JOBID_ADDRESS_XILINX_256MB;
+
+			sprintf(logstr, "Detect 256MB control board of XILINX\n");
+		}
 	}
 	writeInitLogFile(logstr);
 
