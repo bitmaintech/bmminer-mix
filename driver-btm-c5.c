@@ -2515,7 +2515,6 @@ void set_hash_counting_number(unsigned int value)
 void check_chain()
 {
     int ret = 0, i;
-
     dev->chain_num = 0;
 
     ret = get_hash_on_plug();

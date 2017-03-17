@@ -208,10 +208,12 @@ extern unsigned int PHY_MEM_NONCE2_JOBID_ADDRESS;
 #define PHY_MEM_JOB_START_ADDRESS_1		(PHY_MEM_NONCE2_JOBID_ADDRESS + NONCE2_AND_JOBID_STORE_SPACE)
 #define PHY_MEM_JOB_START_ADDRESS_2		(PHY_MEM_JOB_START_ADDRESS_1 + JOB_STORE_SPACE)
 
-#undef R4		// if defined , for R4  63 chips
-#undef S9_PLUS	// if defined , for T9  57 chips
-#define S9_63	// if defined , for S9  63 chips
-#undef T9_18 	// if defined , for T9+  18 chips
+#include "miner_type.h"		// use setminertype to define miner type in this file instead of belows!!!
+//#define R4		// if defined , for R4  63 chips
+//#define S9_PLUS	// if defined , for T9  57 chips
+//#define S9_63	// if defined , for S9  63 chips
+//#define T9_18 	// if defined , for T9+  18 chips
+
 
 #undef USE_FIXED_FREQ_FROM_CONF	// if defined, we will use fixed freq from config file, and will not use freq in PIC
 
