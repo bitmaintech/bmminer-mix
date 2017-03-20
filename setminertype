@@ -1,0 +1,17 @@
+#!/bin/bash -e
+miner_type=$1
+rm ./miner_type.h -f
+if [ "$miner_type"x = "T9+"x ]; then
+echo "#define T9_18" > ./miner_type.h
+elif [ "$miner_type"x = "T9"x ]; then
+echo "#define S9_PLUS" > ./miner_type.h
+elif [ "$miner_type"x = "S9"x ]; then
+echo "#define S9_63" > ./miner_type.h
+elif [ "$miner_type"x = "R4"x ]; then
+echo "#define R4" > ./miner_type.h
+else
+echo "#error need use setminertype to define miner type" > ./miner_type.h
+fi
+
+make clean
+echo "ready to make for ${miner_type}"
