@@ -26,6 +26,7 @@
 #define BC_WRITE_COMMAND				(0x000000c0/sizeof(int))
 #define BC_COMMAND_BUFFER				(0x000000c4/sizeof(int))
 #define FPGA_CHIP_ID_ADDR				(0x000000f0/sizeof(int))
+#define CRC_ERROR_CNT_ADDR              (0x000000f8/sizeof(int))
 #define DHASH_ACC_CONTROL				(0x00000100/sizeof(int))
 #define COINBASE_AND_NONCE2_LENGTH		(0x00000104/sizeof(int))
 #define WORK_NONCE_2					(0x00000108/sizeof(int))
@@ -866,7 +867,7 @@ extern int opt_bitmain_c5_voltage;
 extern bool opt_bitmain_new_cmd_type_vil;
 extern int ADD_FREQ;
 extern int ADD_FREQ1;
-
+extern int fpga_version;
 
 #endif
 
