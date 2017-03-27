@@ -900,7 +900,7 @@ int dsPIC33EP16GS202_get_pic_sw_version(unsigned char which_iic, unsigned char *
 	crc_data[1] = (unsigned char)((crc >> 0) & 0x00ff);
 	printf("--- %s: crc_data[0] = 0x%x, crc_data[1] = 0x%x\n", __FUNCTION__, crc_data[0], crc_data[1]);
 
-	while(1)
+//	while(1)
 	{
 	//	pthread_mutex_lock(&iic_mutex);
 		T9_plus_write_pic_iic(false, false, 0x0, which_iic, PIC_COMMAND_1);
@@ -961,6 +961,7 @@ int dsPIC33EP16GS202_jump_to_app_from_loader(unsigned char which_iic)
 	unsigned char length = 0x04, crc_data[2] = {0xff}, read_back_data[2] = {0xff};
 	unsigned short crc = 0;
 	char logstr[256];
+	int retry_count=0;
 	
 	printf("\n--- %s\n", __FUNCTION__);
 	
@@ -969,7 +970,7 @@ int dsPIC33EP16GS202_jump_to_app_from_loader(unsigned char which_iic)
 	crc_data[1] = (unsigned char)((crc >> 0) & 0x00ff);
 	printf("--- %s: crc_data[0] = 0x%x, crc_data[1] = 0x%x\n", __FUNCTION__, crc_data[0], crc_data[1]);
 
-	while(1)
+	while(retry_count++<3)
 	{
 	//	pthread_mutex_lock(&iic_mutex);
 		T9_plus_write_pic_iic(false, false, 0x0, which_iic, PIC_COMMAND_1);
@@ -999,6 +1000,7 @@ int dsPIC33EP16GS202_jump_to_app_from_loader(unsigned char which_iic)
 			return 1;	// ok
 		}
 	}
+	return 0;
 }
 
 int dsPIC33EP16GS202_reset_pic(unsigned char which_iic)
@@ -1006,6 +1008,7 @@ int dsPIC33EP16GS202_reset_pic(unsigned char which_iic)
 	unsigned char length = 0x04, crc_data[2] = {0xff}, read_back_data[2] = {0xff};
 	unsigned short crc = 0;
 	char logstr[256];
+	int retry_count=0;
 	
 	printf("\n--- %s\n", __FUNCTION__);
 	
@@ -1014,7 +1017,7 @@ int dsPIC33EP16GS202_reset_pic(unsigned char which_iic)
 	crc_data[1] = (unsigned char)((crc >> 0) & 0x00ff);
 	printf("--- %s: which_iic=%d crc_data[0] = 0x%x, crc_data[1] = 0x%x\n", __FUNCTION__,which_iic, crc_data[0], crc_data[1]);
 
-	while(1)
+	while(retry_count++<3)
 	{
 		//	pthread_mutex_lock(&iic_mutex);
 		T9_plus_write_pic_iic(false, false, 0x0, which_iic, PIC_COMMAND_1);
@@ -1045,6 +1048,7 @@ int dsPIC33EP16GS202_reset_pic(unsigned char which_iic)
 			return 1;	// ok
 		}
 	}
+	return 0;
 }
 
 int dsPIC33EP16GS202_update_pic_app_program(unsigned char which_iic);
@@ -1434,6 +1438,7 @@ int set_Voltage_S9_plus_plus_BM1387_54(unsigned char which_iic, unsigned char pi
 	unsigned char voltage1 = pic_voltage, voltage2 = 0, voltage3 = 0;
 	int i;
 	char logstr[256];
+	int retry_count=0;
 
 	printf("voltage1 = %d\n", voltage1);
 
@@ -1448,7 +1453,7 @@ int set_Voltage_S9_plus_plus_BM1387_54(unsigned char which_iic, unsigned char pi
 	crc_data[1] = (unsigned char)((crc >> 0) & 0x00ff);
 	//printf("--- %s: crc_data[0] = 0x%x, crc_data[1] = 0x%x\n", __FUNCTION__, crc_data[0], crc_data[1]);
 
-	while(1)
+	while(retry_count++<3)
 	{
 	//	pthread_mutex_lock(&iic_mutex);
 		T9_plus_write_pic_iic(false, false, 0x0, which_iic, PIC_COMMAND_1);
@@ -1483,6 +1488,7 @@ int set_Voltage_S9_plus_plus_BM1387_54(unsigned char which_iic, unsigned char pi
 			return 1;	// ok
 		}
 	}
+	return 0;
 }
 
 void set_voltage_T9_18_into_PIC(unsigned char chain, unsigned char voltage)
@@ -1659,6 +1665,7 @@ int dsPIC33EP16GS202_enable_pic_dc_dc(unsigned char which_iic, unsigned char ena
 	unsigned char length = 0x05, crc_data[2] = {0xff}, read_back_data[2] = {0xff};
 	unsigned short crc = 0;
 	char logstr[256];
+	int retry_count=0;
 	
 	//printf("\n--- %s\n", __FUNCTION__);
 
@@ -1667,7 +1674,7 @@ int dsPIC33EP16GS202_enable_pic_dc_dc(unsigned char which_iic, unsigned char ena
 	crc_data[1] = (unsigned char)((crc >> 0) & 0x00ff);
 	//printf("--- %s: crc_data[0] = 0x%x, crc_data[1] = 0x%x\n", __FUNCTION__, crc_data[0], crc_data[1]);
 
-	while(1)
+	while(retry_count++<3)
 	{
 	//	pthread_mutex_lock(&iic_mutex);
 		T9_plus_write_pic_iic(false, false, 0x0, which_iic, PIC_COMMAND_1);
@@ -1697,6 +1704,7 @@ int dsPIC33EP16GS202_enable_pic_dc_dc(unsigned char which_iic, unsigned char ena
 			return 1;	// ok
 		}
 	}
+	return 0;
 }
 
 void enable_pic_dac(unsigned char chain)
@@ -1822,12 +1830,13 @@ int dsPIC33EP16GS202_erase_pic_app_program(unsigned char which_iic)
 	unsigned char length = 0x04, crc_data[2] = {0xff}, read_back_data[2] = {0xff};
 	unsigned short crc = 0;
 	char logstr[256];
-
+	int retry_count=0;
+	
 	crc = length + ERASE_PIC_APP_PROGRAM;
 	crc_data[0] = (unsigned char)((crc >> 8) & 0x00ff);
 	crc_data[1] = (unsigned char)((crc >> 0) & 0x00ff);
 
-	while(1)
+	while(retry_count++<3)
 	{
 	//	pthread_mutex_lock(&iic_mutex);
 		T9_plus_write_pic_iic(false, false, 0x0, which_iic, PIC_COMMAND_1);
@@ -1857,6 +1866,7 @@ int dsPIC33EP16GS202_erase_pic_app_program(unsigned char which_iic)
 			return 1;	// ok
 		}
 	}
+	return 0;
 }
 
 int dsPIC33EP16GS202_send_data_to_pic(unsigned char which_iic, unsigned char *buf)
@@ -1864,7 +1874,8 @@ int dsPIC33EP16GS202_send_data_to_pic(unsigned char which_iic, unsigned char *bu
 	unsigned char length = 0x14, crc_data[2] = {0xff}, read_back_data[2] = {0xff}, i;
 	unsigned short crc = 0;
 	char logstr[256];
-
+	int retry_count=0;
+	
 	crc = length + SEND_DATA_TO_IIC;
 	for(i=0; i<16; i++)
 	{
@@ -1873,7 +1884,7 @@ int dsPIC33EP16GS202_send_data_to_pic(unsigned char which_iic, unsigned char *bu
 	crc_data[0] = (unsigned char)((crc >> 8) & 0x00ff);
 	crc_data[1] = (unsigned char)((crc >> 0) & 0x00ff);
 
-	while(1)
+	while(retry_count++<3)
 	{
 	//	pthread_mutex_lock(&iic_mutex);
 		T9_plus_write_pic_iic(false, false, 0x0, which_iic, PIC_COMMAND_1);
@@ -1919,6 +1930,7 @@ int dsPIC33EP16GS202_send_data_to_pic(unsigned char which_iic, unsigned char *bu
 			return 1;	// ok
 		}
 	}
+	return 0;
 }
 
 int dsPIC33EP16GS202_update_pic_app_program(unsigned char which_iic)
@@ -2016,13 +2028,14 @@ int dsPIC33EP16GS202_pic_heart_beat(unsigned char which_iic)
 	unsigned char length = 0x04, crc_data[2] = {0xff}, read_back_data[6] = {0xff};
 	unsigned short crc = 0;
 	char logstr[256];
+	int retry_count=0;
 	
 	crc = length + SEND_HEART_BEAT;
 	crc_data[0] = (unsigned char)((crc >> 8) & 0x00ff);
 	crc_data[1] = (unsigned char)((crc >> 0) & 0x00ff);
 	//printf("--- %s: crc_data[0] = 0x%x, crc_data[1] = 0x%x\n", __FUNCTION__, crc_data[0], crc_data[1]);
 
-	while(1)
+	while(retry_count++<3)
 	{
 	//	pthread_mutex_lock(&iic_mutex);
 		T9_plus_write_pic_iic(false, false, 0x0, which_iic, PIC_COMMAND_1);
@@ -2058,6 +2071,7 @@ int dsPIC33EP16GS202_pic_heart_beat(unsigned char which_iic)
 			return 1;	// ok
 		}
 	}
+	return 0;
 }
 
 void pic_heart_beat_each_chain(unsigned char chain)
