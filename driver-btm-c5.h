@@ -234,21 +234,16 @@ extern unsigned int PHY_MEM_NONCE2_JOBID_ADDRESS;
 #define ENABLE_RESTORE_PIC_APP			// if enabled, will restore PIC APP when the version is not correct!!!
 
 #ifdef R4
-#define FIX_FOR_SPECIAL_C5	// some R4 using C5 has bad design and production, we need limit lower freq
-
 #define USE_N_OFFSET_FIX_TEMP	// if defined, we will use n and offset to fix temp value
 #define EXTEND_TEMP_MODE		// if defined, we set temp value area from -64 to 191 as extended temp
 #define ENABLE_HIGH_VOLTAGE_OPENCORE
 
-#define PIC_VERSION						0x02
+#define PIC_VERSION						0x03
 
 #define CHAIN_ASIC_NUM					63
 
-#ifdef FIX_FOR_SPECIAL_C5
-#define R4_MAX_VOLTAGE					890
-#else
-#define R4_MAX_VOLTAGE					910
-#endif
+#define R4_MAX_VOLTAGE_C5					890
+#define R4_MAX_VOLTAGE_XILINX				910
 
 #define FIX_BAUD_VALUE					1
 #define UPRATE_PERCENT					1	// means we need reserved more 1% rate
@@ -292,9 +287,9 @@ extern unsigned int PHY_MEM_NONCE2_JOBID_ADDRESS;
 #endif
 
 #ifdef T9_18
-#undef ENABLE_HIGH_VOLTAGE_OPENCORE	// T9+ use this , will cause error on chips, because the voltage changing need a long time to balance
+#define ENABLE_HIGH_VOLTAGE_OPENCORE	// T9+ use this , will cause error on chips, because the voltage changing need a long time to balance
 
-#define PIC_VERSION						0x01
+#define PIC_VERSION						0x03
 
 #define CHAIN_ASIC_NUM					18
 #define USE_N_OFFSET_FIX_TEMP	// if defined, we will use n and offset to fix temp value
@@ -337,6 +332,8 @@ extern unsigned int PHY_MEM_NONCE2_JOBID_ADDRESS;
 //fan
 
 // BELOW IS ALL FOR DEBUG !!! normally all must be undefined!!!
+#undef DEBUG_ENABLE_I2C_TIMEOUT_PROCESS	// if defined, sw will process I2C timeout, but normally FPGA will process timeout, SW do not need this
+#undef DEBUG_PRINT_T9_PLUS_PIC_HEART_INFO	// if defined, used to debug T9+ bug: pic heart cmd failed!
 #undef DEBUG_PIC_UPGRADE		// if defined, we will force to write PIC program data once!
 #undef DEBUG_KEEP_REBOOT_EVERY_ONE_HOUR		// if defined, keep reboot every one hour!!!  this is for R4 
 #undef DEBUG_NOT_CHECK_FAN_NUM		// if defined, we will ignore fan number checking, will keep run even without any fan!!!
@@ -379,42 +376,65 @@ typedef enum {
 #define MIN_FAN_NUM                     1
 #define MAX_FAN_SPEED                   3000
 #define TEMP_INTERVAL                   2
+
+// below are used for R4 on using one app to support C5 and XILINX board
+extern int MIN_PWM_PERCENT;
+extern int MID_PWM_PERCENT;
+extern int MAX_PWM_PERCENT;
+extern int MAX_TEMP;
+extern int MAX_FAN_TEMP;
+extern int MID_FAN_TEMP;
+extern int MIN_FAN_TEMP;
+extern int MAX_PCB_TEMP;
+extern int MAX_FAN_PCB_TEMP;
+
 #if PWM_T == 1
-#define MIN_PWM_PERCENT                 20
-#define MID_PWM_PERCENT                 60
-#define MAX_PWM_PERCENT                 100
-#define MAX_TEMP                        125
-#define MAX_FAN_TEMP                    110
-#define MID_FAN_TEMP                    90
-#define MIN_FAN_TEMP                    60
-#define MAX_PCB_TEMP					100	//  use middle to control fan, but use pcb temp to check to stop or not!
-#define MAX_FAN_PCB_TEMP				85	//90 use middle to control fan, but use pcb temp to check to stop or not!
+#define MIN_PWM_PERCENT_C5              20
+#define MID_PWM_PERCENT_C5              60
+#define MAX_PWM_PERCENT_C5              100
+#define MAX_TEMP_C5                     125
+#define MAX_FAN_TEMP_C5                 110
+#define MID_FAN_TEMP_C5                 90
+#define MIN_FAN_TEMP_C5                 60
+#define MAX_PCB_TEMP_C5					100	//  use middle to control fan, but use pcb temp to check to stop or not!
+#define MAX_FAN_PCB_TEMP_C5				85	//90 use middle to control fan, but use pcb temp to check to stop or not!
+
+#define MIN_PWM_PERCENT_XILINX          20
+#define MID_PWM_PERCENT_XILINX          60
+#define MAX_PWM_PERCENT_XILINX          100
+#define MAX_TEMP_XILINX                 125
+#define MAX_FAN_TEMP_XILINX             110
+#define MID_FAN_TEMP_XILINX             90
+#define MIN_FAN_TEMP_XILINX             60
+#define MAX_PCB_TEMP_XILINX				100	//  use middle to control fan, but use pcb temp to check to stop or not!
+#define MAX_FAN_PCB_TEMP_XILINX			85	//90 use middle to control fan, but use pcb temp to check to stop or not!
 #else
-#ifdef FIX_FOR_SPECIAL_C5
-#define MIN_PWM_PERCENT                 50
-#define MID_PWM_PERCENT                 90
-#define MAX_PWM_PERCENT                 100
-#define MAX_TEMP                        90
-#define MAX_FAN_TEMP                    75
-#define MID_FAN_TEMP                    65
-#define MIN_FAN_TEMP                    25
-#define MAX_PCB_TEMP					90	//  use middle to control fan, but use pcb temp to check to stop or not!
-#else
-#define MIN_PWM_PERCENT                 30
-#define MID_PWM_PERCENT                 70
-#define MAX_PWM_PERCENT                 100
-#define MAX_TEMP                        90
-#define MAX_FAN_TEMP                    75
-#define MID_FAN_TEMP                    65
-#define MIN_FAN_TEMP                    25
-#define MAX_PCB_TEMP					90	//  use middle to control fan, but use pcb temp to check to stop or not!
+#define MIN_PWM_PERCENT_C5              50
+#define MID_PWM_PERCENT_C5              90
+#define MAX_PWM_PERCENT_C5              100
+#define MAX_TEMP_C5                     90
+#define MAX_FAN_TEMP_C5                 75
+#define MID_FAN_TEMP_C5                 65
+#define MIN_FAN_TEMP_C5                 25
+#define MAX_PCB_TEMP_C5					90	//  use middle to control fan, but use pcb temp to check to stop or not!
+#define MAX_FAN_PCB_TEMP_C5				85	//90 use middle to control fan, but use pcb temp to check to stop or not!
+
+#define MIN_PWM_PERCENT_XILINX          30
+#define MID_PWM_PERCENT_XILINX          70
+#define MAX_PWM_PERCENT_XILINX          100
+#define MAX_TEMP_XILINX                 90
+#define MAX_FAN_TEMP_XILINX             75
+#define MID_FAN_TEMP_XILINX             65
+#define MIN_FAN_TEMP_XILINX             25
+#define MAX_PCB_TEMP_XILINX				90	//  use middle to control fan, but use pcb temp to check to stop or not!
+#define MAX_FAN_PCB_TEMP_XILINX			85	//90 use middle to control fan, but use pcb temp to check to stop or not!
 #endif
-#endif
+
 #define TEMP_INTERVAL					2
 
 #define MID_PWM_ADJUST_FACTOR           ((MAX_PWM_PERCENT-MID_PWM_PERCENT)/(MAX_FAN_TEMP-MID_FAN_TEMP))
 #define PWM_ADJUST_FACTOR               ((MID_PWM_PERCENT-MIN_PWM_PERCENT)/(MID_FAN_TEMP-MIN_FAN_TEMP))
-#else		
+#else
 // below is for S9
 #define PWM_T 	1	// 0 local temp,  1 middle temp,  2 bottom,  as above!!!
 

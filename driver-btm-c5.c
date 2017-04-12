@@ -121,6 +121,18 @@ static void hexdump(const uint8_t *p, unsigned int len)
 #include "driver-btm-c5.h"
 #include "sha2_c5.h"
 
+#ifdef R4
+int MIN_PWM_PERCENT;
+int MID_PWM_PERCENT;
+int MAX_PWM_PERCENT;
+int MAX_TEMP;
+int MAX_FAN_TEMP;
+int MID_FAN_TEMP;
+int MIN_FAN_TEMP;
+int MAX_PCB_TEMP;
+int MAX_FAN_PCB_TEMP;
+#endif
+
 bool is218_Temp=false;
 
 //interface between bmminer and axi driver
@@ -531,7 +543,9 @@ int getVoltageLimitedFromHashrate(int hashrate_GHz)
 #endif
 
 #ifdef R4
-	vol_value=R4_MAX_VOLTAGE;
+	if(isC5_CtrlBoard)
+		vol_value=R4_MAX_VOLTAGE_C5;
+	else vol_value=R4_MAX_VOLTAGE_XILINX;
 #endif
 
 #ifdef S9_PLUS
@@ -889,6 +903,7 @@ int dsPIC33EP16GS202_get_pic_sw_version(unsigned char which_iic, unsigned char *
 {
 	unsigned char length = 0x04, crc_data[2] = {0xff}, read_back_data[5] = {0xff};
 	unsigned short crc = 0;
+	int retry_count=0;
 	char logstr[256];
 	
 	printf("\n--- %s\n", __FUNCTION__);
@@ -900,7 +915,7 @@ int dsPIC33EP16GS202_get_pic_sw_version(unsigned char which_iic, unsigned char *
 	crc_data[1] = (unsigned char)((crc >> 0) & 0x00ff);
 	printf("--- %s: crc_data[0] = 0x%x, crc_data[1] = 0x%x\n", __FUNCTION__, crc_data[0], crc_data[1]);
 
-//	while(1)
+	while(retry_count++<3)
 	{
 	//	pthread_mutex_lock(&iic_mutex);
 		T9_plus_write_pic_iic(false, false, 0x0, which_iic, PIC_COMMAND_1);
@@ -924,8 +939,8 @@ int dsPIC33EP16GS202_get_pic_sw_version(unsigned char which_iic, unsigned char *
 		{
 			sprintf(logstr,"%s failed on Chain[%d]!\n", __FUNCTION__,which_iic);
 			writeInitLogFile(logstr);
-			sleep(3);
-			return 0;	// error
+			sleep(1);
+			// return 0;	// error
 		}
 		else
 		{
@@ -933,13 +948,18 @@ int dsPIC33EP16GS202_get_pic_sw_version(unsigned char which_iic, unsigned char *
 			if(((unsigned char)((crc >> 8) & 0x00ff) != read_back_data[3]) || ((unsigned char)((crc >> 0) & 0x00ff) != read_back_data[4]))
 			{
 				printf("\n--- %s failed!\n\n", __FUNCTION__);
-				return 0;	// error
+				// return 0;	// error
+				sleep(1);
 			}
-			*version = read_back_data[2];
-			printf("\n--- %s ok\n\n", __FUNCTION__);
-			return 1;	// ok
+			else
+			{
+				*version = read_back_data[2];
+				printf("\n--- %s ok\n\n", __FUNCTION__);
+				return 1;	// ok
+			}
 		}
 	}
+	return 0;
 }
 
 void get_pic_software_version(unsigned char chain, unsigned char *version)
@@ -990,16 +1010,17 @@ int dsPIC33EP16GS202_jump_to_app_from_loader(unsigned char which_iic)
 		{
 			sprintf(logstr,"%s failed on Chain[%d]!\n", __FUNCTION__,which_iic);
 			writeInitLogFile(logstr);
-			sleep(3);
+			sleep(1);
 		//	return 0;	// error
 		}
 		else
 		{
-			sleep(3);
+			sleep(1);
 			printf("\n--- %s ok\n\n", __FUNCTION__);
 			return 1;	// ok
 		}
 	}
+
 	return 0;
 }
 
@@ -1038,7 +1059,7 @@ int dsPIC33EP16GS202_reset_pic(unsigned char which_iic)
 		{
 			sprintf(logstr,"%s failed on Chain[%d]!\n", __FUNCTION__,which_iic);
 			writeInitLogFile(logstr);
-			sleep(3);
+			sleep(1);
 		//	return 0;	// error
 		}
 		else
@@ -1476,7 +1497,7 @@ int set_Voltage_S9_plus_plus_BM1387_54(unsigned char which_iic, unsigned char pi
 		{
 			sprintf(logstr,"%s failed on Chain[%d]!\n\n", __FUNCTION__,which_iic);
 			writeInitLogFile(logstr);
-			sleep(3);
+			sleep(1);
 		//	return 0;	// error
 		}
 		else
@@ -1508,13 +1529,59 @@ void set_voltage_T9_18_into_PIC(unsigned char chain, unsigned char voltage)
 
 unsigned char getHighestVoltagePIC(int chainIndex)
 {
-	int startIndex=(chainIndex/3)*3;	// get start chainindex, 0,1,2 = 0    3,4,5 = 3  ...
+	int startIndex;	
 	int i;
-	unsigned char minVolPIC=chain_voltage_pic[chainIndex];
-	for(i=startIndex;i<startIndex+3;i++)
+	unsigned char minVolPIC;
+
+	if(fpga_version>=0xE)
 	{
-		if(minVolPIC>chain_voltage_pic[i])
-			minVolPIC=chain_voltage_pic[i];	// the value is lower, means voltage is higher!!!
+		switch(chainIndex)
+		{
+		case 1:
+		case 8:
+		case 9:
+			minVolPIC=chain_voltage_pic[1];
+			for(i=8;i<10;i++)
+			{
+				if(minVolPIC>chain_voltage_pic[i])
+					minVolPIC=chain_voltage_pic[i];	// the value is lower, means voltage is higher!!!
+			}
+			break;
+		case 2:
+		case 10:
+		case 11:
+			minVolPIC=chain_voltage_pic[2];
+			for(i=10;i<12;i++)
+			{
+				if(minVolPIC>chain_voltage_pic[i])
+					minVolPIC=chain_voltage_pic[i];	// the value is lower, means voltage is higher!!!
+			}
+			break;
+		case 3:
+		case 12:
+		case 13:
+			minVolPIC=chain_voltage_pic[3];
+			for(i=12;i<14;i++)
+			{
+				if(minVolPIC>chain_voltage_pic[i])
+					minVolPIC=chain_voltage_pic[i];	// the value is lower, means voltage is higher!!!
+			}
+			break;
+		default:
+			minVolPIC=0;
+			break;
+		}
+	}
+	else
+	{
+		startIndex=(chainIndex/3)*3; // get start chainindex, 0,1,2 = 0    3,4,5 = 3  ...
+		minVolPIC=chain_voltage_pic[chainIndex];
+		
+		for(i=startIndex;i<startIndex+3;i++)
+		{
+			if(minVolPIC>chain_voltage_pic[i])
+				minVolPIC=chain_voltage_pic[i];	// the value is lower, means voltage is higher!!!
+		}
 	}
 
 	return minVolPIC;
@@ -1695,7 +1762,7 @@ int dsPIC33EP16GS202_enable_pic_dc_dc(unsigned char which_iic, unsigned char ena
 		{
 			sprintf(logstr,"%s failed on Chain[%d]!\n", __FUNCTION__,which_iic);
 			writeInitLogFile(logstr);
-			sleep(3);
+			sleep(1);
 		//	return 0;	// error
 		}
 		else
@@ -1759,7 +1826,10 @@ unsigned char set_iic(unsigned int data)
 {
 	unsigned int ret=0;
 	unsigned char ret_data = 0;
-
+	int wait_counter=0;
+#ifdef DEBUG_PRINT_T9_PLUS_PIC_HEART_INFO
+	char logstr[256];
+#endif
 	*((unsigned int *)(axi_fpga_addr + IIC_COMMAND)) = data & 0x7fffffff;
 	//applog(LOG_DEBUG,"%s: set IIC_COMMAND is 0x%x\n", __FUNCTION__, data & 0x7fffffff);
 
@@ -1771,18 +1841,34 @@ unsigned char set_iic(unsigned int data)
 			ret_data = (unsigned char)(ret & 0x000000ff);
 			return ret_data;
 		}
+#ifdef DEBUG_ENABLE_I2C_TIMEOUT_PROCESS
 		else
 		{
+			wait_counter++;
+			if(wait_counter>3)
+			{
+#ifdef DEBUG_PRINT_T9_PLUS_PIC_HEART_INFO
+				set_red_led(true);	// open red led
+				
+				sprintf(logstr,"Error: set_iic wait IIC timeout!\n");
+				writeInitLogFile(logstr);
+#endif
+				break;
+			}
 			//applog(LOG_DEBUG,"%s: waiting write pic iic\n", __FUNCTION__);
-			usleep(1000);
 		}
+#endif
+		usleep(1000);
 	}
 }
 
 unsigned char T9_plus_write_pic_iic(bool read, bool reg_addr_valid, unsigned char reg_addr, unsigned char which_iic, unsigned char data)
 {
 	unsigned int value = 0x00000000, counter = 0;
-	unsigned char ret = 0;
+	unsigned int ret = 0;
+#ifdef DEBUG_PRINT_T9_PLUS_PIC_HEART_INFO
+	char logstr[256];
+#endif
 
 	while(1)
     {
@@ -1792,11 +1878,16 @@ unsigned char T9_plus_write_pic_iic(bool read, bool reg_addr_valid, unsigned cha
         {        	
 			break;
 		}
+#ifdef DEBUG_ENABLE_I2C_TIMEOUT_PROCESS
 		else if(counter++>3)
 		{
-			//printf("^^^^^^^^^^^^^^^^^^^^^\n");
+#ifdef DEBUG_PRINT_T9_PLUS_PIC_HEART_INFO
+			sprintf(logstr,"Error: T9_plus_write_pic_iic wait IIC timeout!\n");
+			writeInitLogFile(logstr);
+#endif
 			break;
 		}
+#endif
 		usleep(1*1000);
 	}
 
@@ -1820,9 +1911,7 @@ unsigned char T9_plus_write_pic_iic(bool read, bool reg_addr_valid, unsigned cha
 
 	value |= data;
 
-	ret = set_iic(value);
-
-	return ret;
+	return set_iic(value);
 }
 
 int dsPIC33EP16GS202_erase_pic_app_program(unsigned char which_iic)
@@ -1857,7 +1946,7 @@ int dsPIC33EP16GS202_erase_pic_app_program(unsigned char which_iic)
 		{
 			sprintf(logstr,"%s failed on Chain[%d]!\n", __FUNCTION__,which_iic);
 			writeInitLogFile(logstr);
-			sleep(3);
+			sleep(1);
 		//	return 0;	// error
 		}
 		else
@@ -1921,7 +2010,7 @@ int dsPIC33EP16GS202_send_data_to_pic(unsigned char which_iic, unsigned char *bu
 		{
 			sprintf(logstr,"%s failed on Chain[%d]!\n", __FUNCTION__,which_iic);
 			writeInitLogFile(logstr);
-			sleep(3);
+			sleep(1);
 		//	return 0;	// error
 		}
 		else
@@ -2053,21 +2142,26 @@ int dsPIC33EP16GS202_pic_heart_beat(unsigned char which_iic)
 		read_back_data[5] = T9_plus_write_pic_iic(true, false, 0x0, which_iic, 0);
 	//	pthread_mutex_unlock(&iic_mutex);
 
-		
-		//printf("--- %s: read_back_data[0] = 0x%x, read_back_data[1] = 0x%x, read_back_data[2] = 0x%x, read_back_data[3] = 0x%x, read_back_data[4] = 0x%x, read_back_data[5] = 0x%x\n", 
-		//		__FUNCTION__, read_back_data[0], read_back_data[1], read_back_data[2], read_back_data[3], read_back_data[4], read_back_data[5]);
-		
-
 		if((read_back_data[1] != SEND_HEART_BEAT) || (read_back_data[2] != 1))
 		{
+#ifdef DEBUG_PRINT_T9_PLUS_PIC_HEART_INFO
+			sprintf(logstr,"%s read_back: %02x %02x %02x %02x %02x %02x\n", 
+						__FUNCTION__, read_back_data[0], read_back_data[1], read_back_data[2], read_back_data[3], read_back_data[4], read_back_data[5]);
+			writeInitLogFile(logstr);
+
 			sprintf(logstr,"%s failed on Chain[%d]!\n", __FUNCTION__,which_iic);
 			writeInitLogFile(logstr);
-			sleep(3);
+#endif
+
+			sleep(1);
 		//	return 0;	// error
 		}
 		else
 		{
-			printf("\n--- %s ok, HeartBeatReturnWord = %d\n\n", __FUNCTION__, read_back_data[3]);
+#ifdef DEBUG_PRINT_T9_PLUS_PIC_HEART_INFO
+		//	sprintf(logstr,"%s ok, HeartBeatReturnWord = %d\n\n", __FUNCTION__, read_back_data[3]);
+		//	writeInitLogFile(logstr);
+#endif
 			return 1;	// ok
 		}
 	}
@@ -7636,11 +7730,48 @@ void init_uart_baud()
     set_baud(bauddiv,1);
 }
 
+#ifdef DEBUG_PRINT_T9_PLUS_PIC_HEART_INFO
+void set_red_led(bool flag)
+{
+	char cmd[100];
+	if(isC5_CtrlBoard)
+	{
+		if(flag)
+		{
+			sprintf(cmd,"echo %d > %s", 1,RED_LED_DEV_C5);
+			system(cmd);
+		}
+		else
+		{
+			sprintf(cmd,"echo %d > %s", 0,RED_LED_DEV_C5);
+			system(cmd);
+		}
+	}
+	else
+	{
+		if(flag)
+		{
+			sprintf(cmd,"echo %d > %s", 1,RED_LED_DEV_XILINX);
+			system(cmd);
+		}
+		else
+		{
+			sprintf(cmd,"echo %d > %s", 0,RED_LED_DEV_XILINX);
+			system(cmd);
+		}
+	}
+}
+#endif
+
 void set_led(bool stop)
 {
     static bool blink = true;
     char cmd[100];
     blink = !blink;
+
+#ifdef DEBUG_PRINT_T9_PLUS_PIC_HEART_INFO
+	return;	// disable LED, we use it to debug
+#endif
 
 	if(isC5_CtrlBoard)
 	{
@@ -7676,8 +7807,6 @@ void set_led(bool stop)
 	        system(cmd);
 	    }
 	}
-    
-
 }
 
 void * pic_heart_beat_func()
@@ -9741,11 +9870,35 @@ int bitmain_c5_init(struct init_config config)
 
 	if(isC5_CtrlBoard)
 	{
+#ifdef R4
+		MIN_PWM_PERCENT=MIN_PWM_PERCENT_C5;
+		MID_PWM_PERCENT=MID_PWM_PERCENT_C5;
+		MAX_PWM_PERCENT=MAX_PWM_PERCENT_C5;
+		MAX_TEMP=MAX_TEMP_C5;
+		MAX_FAN_TEMP=MAX_FAN_TEMP_C5;
+		MID_FAN_TEMP=MID_FAN_TEMP_C5;
+		MIN_FAN_TEMP=MIN_FAN_TEMP_C5;
+		MAX_PCB_TEMP=MAX_PCB_TEMP_C5;
+		MAX_FAN_PCB_TEMP=MAX_FAN_PCB_TEMP_C5;
+#endif
+
 		PHY_MEM_NONCE2_JOBID_ADDRESS=PHY_MEM_NONCE2_JOBID_ADDRESS_C5;
 		sprintf(logstr,"This is C5 board.\n");
 	}
 	else
 	{
+#ifdef R4
+		MIN_PWM_PERCENT=MIN_PWM_PERCENT_XILINX;
+		MID_PWM_PERCENT=MID_PWM_PERCENT_XILINX;
+		MAX_PWM_PERCENT=MAX_PWM_PERCENT_XILINX;
+		MAX_TEMP=MAX_TEMP_XILINX;
+		MAX_FAN_TEMP=MAX_FAN_TEMP_XILINX;
+		MID_FAN_TEMP=MID_FAN_TEMP_XILINX;
+		MIN_FAN_TEMP=MIN_FAN_TEMP_XILINX;
+		MAX_PCB_TEMP=MAX_PCB_TEMP_XILINX;
+		MAX_FAN_PCB_TEMP=MAX_FAN_PCB_TEMP_XILINX;
+#endif
+
 		sysinfo(&si);
 		
 		if(si.totalram > 1000000000)
@@ -9839,6 +9992,10 @@ int bitmain_c5_init(struct init_config config)
 #endif
 		set_PWM(MAX_PWM_PERCENT);
     }
+
+#ifdef DEBUG_PRINT_T9_PLUS_PIC_HEART_INFO
+	set_red_led(false);	// close red led
+#endif
 
 	// need read FPGA version at first, used in T9+	
 	hardware_version = get_hardware_version();
@@ -10042,10 +10199,10 @@ int bitmain_c5_init(struct init_config config)
 			
 			vol_pic=getPICvoltageFromValue(HIGHEST_VOLTAGE_LIMITED_HW);
 			
-		//	sprintf(logstr,"Chain[J%d] will use highest voltage=%d [%d] to open core\n",i+1,HIGHEST_VOLTAGE_LIMITED_HW,vol_pic);
-		//	writeInitLogFile(logstr);
-
 #ifdef T9_18
+			sprintf(logstr,"Chain[J%d] will use voltage=%d [%d] to open core\n",i+1,HIGHEST_VOLTAGE_LIMITED_HW,vol_pic);
+			writeInitLogFile(logstr);
+			
 			if(fpga_version>=0xE)
 			{
 				if(i>=1 && i<=3)
@@ -10455,6 +10612,9 @@ int bitmain_c5_init(struct init_config config)
 			{
 				if(i==1)
 				{
+					sprintf(logstr,"open core on chain[1] [8] [9]...\n");
+					writeInitLogFile(logstr);
+			
 					// we must try open core on chain [8] and chain[9] ... 
 #ifdef USE_OPENCORE_ONEBYONE
 					opencore_onebyone_onChain(8);
@@ -10470,6 +10630,9 @@ int bitmain_c5_init(struct init_config config)
 				}
 				else if(i==2)
 				{
+					sprintf(logstr,"open core on chain[2] [10] [11]...\n");
+					writeInitLogFile(logstr);
+					
 #ifdef USE_OPENCORE_ONEBYONE
 					opencore_onebyone_onChain(10);
 					sleep(1);
@@ -10484,6 +10647,8 @@ int bitmain_c5_init(struct init_config config)
 				}
 				else if(i==3)
 				{
+					sprintf(logstr,"open core on chain[3] [12] [13]...\n");
+					writeInitLogFile(logstr);
 #ifdef USE_OPENCORE_ONEBYONE
 					opencore_onebyone_onChain(12);
 					sleep(1);
