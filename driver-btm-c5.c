@@ -606,6 +606,74 @@ int getVoltageLimitedFromHashrate(int hashrate_GHz)
 	return vol_value;
 }
 
+int getFixedFreqVoltageValue(int freq)
+{
+	int vol_value;
+#ifdef R4
+	if(isC5_CtrlBoard)
+		vol_value=890;
+	else vol_value=910;
+#endif
+	
+#ifdef S9_PLUS
+	if(freq>=643)	// hashrate 12500
+		vol_value=840;
+	else if(freq>=618)	// hashrate 12000
+		vol_value=850;
+	else if(freq>=593)	// hashrate 11500
+		vol_value=870;
+	else if(freq>=568)	// hashrate 11000
+		vol_value=890;
+	else if(freq>=543)	// hashrate 10500
+		vol_value=910;
+	else if(freq>=516)	// hashrate 10000
+		vol_value=930;
+	else if(freq>=491)	// hashrate 9500
+		vol_value=960;
+	else if(freq>=462)	// hashrate 9000
+		vol_value=970;
+	else
+		vol_value=970;
+#endif
+	
+#ifdef S9_63
+	if(freq>=675)	// hashrate 14500
+		vol_value=870;
+	else if(freq>=650)	// hashrate 14000
+		vol_value=880;
+	else if(freq>=631)	// hashrate 13500
+		vol_value=900;
+	else if(freq>=606)	// hashrate 13000
+		vol_value=910;
+	else if(freq>=581)	// hashrate 12500
+		vol_value=930;
+	else
+		vol_value=940;
+#endif
+
+#ifdef T9_18
+	if(freq>=650)	// hashrate 12000
+		vol_value=810;
+	else if(freq>=625)	// hashrate 11500
+		vol_value=830;
+	else if(freq>=600)	// hashrate 11000
+		vol_value=850;
+	else if(freq>=575)	// hashrate 10500
+		vol_value=870;
+	else if(freq>=543)	// hashrate 10000
+		vol_value=890;
+	else if(freq>=516)	// hashrate 9500
+		vol_value=920;
+	else if(freq>=491)	// hashrate 9000
+		vol_value=930;
+	else
+		vol_value=930;
+#endif
+
+	return vol_value;
+
+}
+
 #ifdef T9_18
 void getPICChainIndexOffset(int chainIndex, int *pChain, int *pOffset)
 {
@@ -4418,7 +4486,8 @@ void set_frequency(unsigned short int frequency)
 						chain_min_freq=chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j];
 
 #ifdef USE_FIXED_FREQ_FROM_CONF	// when use fixed freq, we add more 1 step on freq index
-					set_frequency_with_addr_plldatai(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]+1, 0, j * dev->addrInterval, i);
+					//set_frequency_with_addr_plldatai(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]+1, 0, j * dev->addrInterval, i);
+					set_frequency_with_addr_plldatai(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j], 0, j * dev->addrInterval, i);
 #else
 					set_frequency_with_addr_plldatai(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j], 0, j * dev->addrInterval, i);
 #endif
@@ -4462,7 +4531,8 @@ void set_frequency(unsigned short int frequency)
 						chain_min_freq=chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j];
 
 #ifdef USE_FIXED_FREQ_FROM_CONF	// when use fixed freq, we add more 1 step on freq index
-					set_frequency_with_addr_plldatai(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]+1, 0, j * dev->addrInterval, i);
+					//set_frequency_with_addr_plldatai(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]+1, 0, j * dev->addrInterval, i);
+					set_frequency_with_addr_plldatai(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j], 0, j * dev->addrInterval, i);
 #else
 	                set_frequency_with_addr_plldatai(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j], 0, j * dev->addrInterval, i);
 #endif
@@ -4514,7 +4584,8 @@ void set_frequency(unsigned short int frequency)
 					chain_min_freq=last_freq[i][j*2+3];
 
 #ifdef USE_FIXED_FREQ_FROM_CONF	// when use fixed freq, we add more 1 step on freq index
-				set_frequency_with_addr_plldatai(last_freq[i][j*2+3]+1,0, j * dev->addrInterval,i);
+				//set_frequency_with_addr_plldatai(last_freq[i][j*2+3]+1,0, j * dev->addrInterval,i);
+				set_frequency_with_addr_plldatai(last_freq[i][j*2+3],0, j * dev->addrInterval,i);
 #else
                 set_frequency_with_addr_plldatai(last_freq[i][j*2+3],0, j * dev->addrInterval,i);
 #endif
@@ -10225,6 +10296,21 @@ int bitmain_c5_init(struct init_config config)
         }
     }
 
+#ifdef USE_FIXED_FREQ_FROM_CONF
+	// we must set voltage value according to the freq of config file!
+	for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
+    {
+        if(dev->chain_exist[i] == 1)
+        {
+        	chain_voltage_value[i] = getFixedFreqVoltageValue(config_parameter.frequency);
+			chain_voltage_pic[i] = getPICvoltageFromValue(chain_voltage_value[i]);
+			
+			sprintf(logstr,"Fix freq=%d Chain[%d] voltage_pic=%d value=%d\n",config_parameter.frequency,i,chain_voltage_pic[i],chain_voltage_value[i]);
+			writeInitLogFile(logstr);
+        }
+	}
+#endif
+
 #ifndef USE_FIXED_FREQ_FROM_CONF
 	cgsleep_ms(100);
 	for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
@@ -10248,6 +10334,7 @@ int bitmain_c5_init(struct init_config config)
 			if(last_freq[i][1] == FREQ_MAGIC && last_freq[i][40] == 0x23)	//0x23 is backup voltage magic number
 #endif
 			{
+#ifndef DEBUG_KEEP_USE_PIC_VOLTAGE_WITHOUT_CHECKING_VOLTAGE_OF_SEARCHFREQ
 				if(vol_value != chain_voltage_value[i])	// if not equal, we need force to set backup voltage to hashbaord!!!
 				{
 					vol_pic=getPICvoltageFromValue(chain_voltage_value[i]);
@@ -10266,6 +10353,7 @@ int bitmain_c5_init(struct init_config config)
 					sprintf(logstr,"Chain[J%d] get working chain_voltage_pic=%d\n",i+1,chain_voltage_pic[i]);
 					writeInitLogFile(logstr);
 				}
+#endif
 			}
 			
 			pthread_mutex_unlock(&iic_mutex);
@@ -10539,6 +10627,7 @@ int bitmain_c5_init(struct init_config config)
 
 	set_PWM(MAX_PWM_PERCENT);
 
+#ifndef USE_FIXED_FREQ_FROM_CONF
 #ifndef T9_18
 	// below process is check voltage and make sure not too high, must can be processed after set_frequency, because of GetTotalRate function need init to support fixed freq old miner S9
 	for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)  // here must use i from 0 in for loop, because we use j to get the index as config file's voltage value
@@ -10555,29 +10644,35 @@ int bitmain_c5_init(struct init_config config)
 			vol_value = getVolValueFromPICvoltage(vol_pic);
 			vol_value_limited=getVoltageLimitedFromHashrate(GetTotalRate());
 
-			sprintf(logstr,"get PIC voltage=%d on chain[%d], check: must be < %d\n",vol_value,i,vol_value_limited);
-			writeInitLogFile(logstr);
-
-			if(vol_value > vol_value_limited)	// we will set voltage to the highest voltage for the last chance on test patten
-			{
-				sprintf(logstr,"will set the voltage limited on chain[%d], change voltage=%d\n",i,vol_value_limited);
-				writeInitLogFile(logstr);
-
-				vol_pic=getPICvoltageFromValue(vol_value_limited);
-				sprintf(logstr,"now set pic voltage=%d on chain[%d]\n",vol_pic,i);
-				writeInitLogFile(logstr);
-
-				chain_voltage_pic[i]=vol_pic;
-				
-#ifndef ENABLE_HIGH_VOLTAGE_OPENCORE
-				pthread_mutex_lock(&iic_mutex);
-				set_pic_voltage(i, vol_pic);
-				pthread_mutex_unlock(&iic_mutex);
+#ifdef DEBUG_KEEP_USE_PIC_VOLTAGE_WITHOUT_CHECKING_VOLTAGE_OF_SEARCHFREQ
+			if(vol_value>=HIGHEST_VOLTAGE_LIMITED_HW)	// we keep use pic voltage, but we still need check voltage can not be the highest voltage!
 #endif
+			{
+				sprintf(logstr,"get PIC voltage=%d on chain[%d], check: must be < %d\n",vol_value,i,vol_value_limited);
+				writeInitLogFile(logstr);
+
+				if(vol_value > vol_value_limited)	// we will set voltage to the highest voltage for the last chance on test patten
+				{
+					sprintf(logstr,"will set the voltage limited on chain[%d], change voltage=%d\n",i,vol_value_limited);
+					writeInitLogFile(logstr);
+
+					vol_pic=getPICvoltageFromValue(vol_value_limited);
+					sprintf(logstr,"now set pic voltage=%d on chain[%d]\n",vol_pic,i);
+					writeInitLogFile(logstr);
+
+					chain_voltage_pic[i]=vol_pic;
+					
+#ifndef ENABLE_HIGH_VOLTAGE_OPENCORE
+					pthread_mutex_lock(&iic_mutex);
+					set_pic_voltage(i, vol_pic);
+					pthread_mutex_unlock(&iic_mutex);
+#endif
+				}
 			}
 		}
 	}
 #endif
+#endif	// USE_FIXED_FREQ_FROM_CONF
 
 #ifdef ENABLE_HIGH_VOLTAGE_OPENCORE
 	for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)

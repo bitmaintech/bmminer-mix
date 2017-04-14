@@ -216,7 +216,7 @@ extern unsigned int PHY_MEM_NONCE2_JOBID_ADDRESS;
 //#define T9_18 	// if defined , for T9+  18 chips
 
 
-#undef USE_FIXED_FREQ_FROM_CONF	// if defined, we will use fixed freq from config file, and will not use freq in PIC
+#define USE_FIXED_FREQ_FROM_CONF	// if defined, we will use fixed freq from config file, and will not use freq in PIC
 
 #define RESET_KEEP_TIME		3	// keep reset signal for 1 secnods
 #undef USE_OPENCORE_ONEBYONE	// if defined, we will use open core one by one, do 114 times on open core for each chain!  but NOT WORKS!??
@@ -332,6 +332,7 @@ extern unsigned int PHY_MEM_NONCE2_JOBID_ADDRESS;
 //fan
 
 // BELOW IS ALL FOR DEBUG !!! normally all must be undefined!!!
+#undef DEBUG_KEEP_USE_PIC_VOLTAGE_WITHOUT_CHECKING_VOLTAGE_OF_SEARCHFREQ	// if defined, will read pic voltage at first , and use this voltage in mining as working voltage, ignore the backup voltage of search freq
 #undef DEBUG_ENABLE_I2C_TIMEOUT_PROCESS	// if defined, sw will process I2C timeout, but normally FPGA will process timeout, SW do not need this
 #undef DEBUG_PRINT_T9_PLUS_PIC_HEART_INFO	// if defined, used to debug T9+ bug: pic heart cmd failed!
 #undef DEBUG_PIC_UPGRADE		// if defined, we will force to write PIC program data once!
