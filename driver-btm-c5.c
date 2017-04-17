@@ -286,6 +286,31 @@ signed char getMeddleOffsetForTestPatten(int chainIndex)
 }
 
 unsigned int PHY_MEM_NONCE2_JOBID_ADDRESS=PHY_MEM_NONCE2_JOBID_ADDRESS_XILINX_1GB;	// set to XILINX as default
+
+bool isFixedFreqMode()
+{
+	static int do_once=0;
+	FILE *fd;
+	char testnumStr[32];
+	static bool fixedfreqFlag=false;
+	
+	if(do_once>0)
+		return fixedfreqFlag;
+		
+	fd=fopen("/etc/config/fixedfreq","rb");
+	do_once=1;
+	if(fd)
+	{
+		memset(testnumStr,'\0',sizeof(testnumStr));
+		fread(testnumStr,1,sizeof(testnumStr),fd);
+		fclose(fd);
+
+		if(atoi(testnumStr)>=1)
+			fixedfreqFlag=true;
+	}
+	return fixedfreqFlag;
+}
+
 bool isC5_Board()
 {
   FILE *fd;
@@ -3953,17 +3978,18 @@ void clearInitLogFile()
 	if(fd)
 		fclose(fd);
 
-#ifdef USE_FIXED_FREQ_FROM_CONF
-	fd=fopen("/tmp/search","w");
-	if(fd)
-		fclose(fd);
-	fd=fopen("/tmp/freq","w");
-	if(fd)
-		fclose(fd);
-	fd=fopen("/tmp/lasttemp","w");
-	if(fd)
-		fclose(fd);
-#endif
+	if(isFixedFreqMode())
+	{
+		fd=fopen("/tmp/search","w");
+		if(fd)
+			fclose(fd);
+		fd=fopen("/tmp/freq","w");
+		if(fd)
+			fclose(fd);
+		fd=fopen("/tmp/lasttemp","w");
+		if(fd)
+			fclose(fd);
+	}
 
 	pthread_mutex_unlock(&init_log_mutex);
 }
@@ -3995,12 +4021,10 @@ void set_frequency(unsigned short int frequency)
     {
         if(dev->chain_exist[i] == 1 && dev->chain_asic_num[i]>0)
         {
-#ifndef USE_FIXED_FREQ_FROM_CONF
 #ifdef T9_18
-			if (getChainPICMagicNumber(i) != FREQ_MAGIC)
+			if (isFixedFreqMode() || getChainPICMagicNumber(i) != FREQ_MAGIC)
 #else
-            if (last_freq[i][1] != FREQ_MAGIC)
-#endif
+            if (isFixedFreqMode() || last_freq[i][1] != FREQ_MAGIC)
 #endif
             {
             	isUseDefaultFreq=true;
@@ -4146,151 +4170,197 @@ void set_frequency(unsigned short int frequency)
 		writeInitLogFile(logstr);
 	}
 
-#ifndef USE_FIXED_FREQ_FROM_CONF
-	//////////////////////// just print freq record, but do not set freq, we need fix freq /////////////////////////
-    for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
-    {
-    	chain_max_freq=0;
-		chain_min_freq=100;
-        if(dev->chain_exist[i] == 1 && dev->chain_asic_num[i]>0)
-        {
-        	vol_pic=get_pic_voltage(i);
-			vol_value = getVolValueFromPICvoltage(vol_pic);
-			sprintf(logstr,"read PIC voltage=%d on chain[%d]\n",vol_value,i);
-			writeInitLogFile(logstr);
-			
-        	sprintf(logstr,"Chain:%d chipnum=%d\n",i,dev->chain_asic_num[i]);
-			writeInitLogFile(logstr);
-#ifdef T9_18
-			if(fpga_version>=0xE)
-			{
-				int new_T9_PLUS_chainIndex,new_T9_PLUS_chainOffset;
-				getPICChainIndexOffset(i,&new_T9_PLUS_chainIndex,&new_T9_PLUS_chainOffset);
+	if(!isFixedFreqMode())
+	{
+		//////////////////////// just print freq record, but do not set freq, we need fix freq /////////////////////////
+	    for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
+	    {
+	    	chain_max_freq=0;
+			chain_min_freq=100;
+	        if(dev->chain_exist[i] == 1 && dev->chain_asic_num[i]>0)
+	        {
+	        	vol_pic=get_pic_voltage(i);
+				vol_value = getVolValueFromPICvoltage(vol_pic);
+				sprintf(logstr,"read PIC voltage=%d on chain[%d]\n",vol_value,i);
+				writeInitLogFile(logstr);
 				
-				sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+2]);
-			}
-			else
-			{
-				sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,chain_pic_buf[((i/3)*3)][7+(i%3)*31+2]);
-			}
+	        	sprintf(logstr,"Chain:%d chipnum=%d\n",i,dev->chain_asic_num[i]);
+				writeInitLogFile(logstr);
+#ifdef T9_18
+				if(fpga_version>=0xE)
+				{
+					int new_T9_PLUS_chainIndex,new_T9_PLUS_chainOffset;
+					getPICChainIndexOffset(i,&new_T9_PLUS_chainIndex,&new_T9_PLUS_chainOffset);
+					
+					sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+2]);
+				}
+				else
+				{
+					sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,chain_pic_buf[((i/3)*3)][7+(i%3)*31+2]);
+				}
 #else
-			sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,last_freq[i][10]&0x3f);
+				sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,last_freq[i][10]&0x3f);
 #endif
-			writeInitLogFile(logstr);
-			
-        	get_macBytes("eth0",minerMAC);
+				writeInitLogFile(logstr);
+				
+	        	get_macBytes("eth0",minerMAC);
 
 #ifdef T9_18
-			if(fpga_version>=0xE)
-			{
-				int new_T9_PLUS_chainIndex,new_T9_PLUS_chainOffset;
-				getPICChainIndexOffset(i,&new_T9_PLUS_chainIndex,&new_T9_PLUS_chainOffset);
-				
-				hashMAC[0]=chain_pic_buf[new_T9_PLUS_chainIndex][1];
-				hashMAC[1]=chain_pic_buf[new_T9_PLUS_chainIndex][2];
-				hashMAC[2]=chain_pic_buf[new_T9_PLUS_chainIndex][3];
-				hashMAC[3]=chain_pic_buf[new_T9_PLUS_chainIndex][4];
-				hashMAC[4]=chain_pic_buf[new_T9_PLUS_chainIndex][5];
-				hashMAC[5]=chain_pic_buf[new_T9_PLUS_chainIndex][6];
-			}
-			else
-			{
-				hashMAC[0]=chain_pic_buf[((i/3)*3)][1];
-				hashMAC[1]=chain_pic_buf[((i/3)*3)][2];
-				hashMAC[2]=chain_pic_buf[((i/3)*3)][3];
-				hashMAC[3]=chain_pic_buf[((i/3)*3)][4];
-				hashMAC[4]=chain_pic_buf[((i/3)*3)][5];
-				hashMAC[5]=chain_pic_buf[((i/3)*3)][6];
-			}
+				if(fpga_version>=0xE)
+				{
+					int new_T9_PLUS_chainIndex,new_T9_PLUS_chainOffset;
+					getPICChainIndexOffset(i,&new_T9_PLUS_chainIndex,&new_T9_PLUS_chainOffset);
+					
+					hashMAC[0]=chain_pic_buf[new_T9_PLUS_chainIndex][1];
+					hashMAC[1]=chain_pic_buf[new_T9_PLUS_chainIndex][2];
+					hashMAC[2]=chain_pic_buf[new_T9_PLUS_chainIndex][3];
+					hashMAC[3]=chain_pic_buf[new_T9_PLUS_chainIndex][4];
+					hashMAC[4]=chain_pic_buf[new_T9_PLUS_chainIndex][5];
+					hashMAC[5]=chain_pic_buf[new_T9_PLUS_chainIndex][6];
+				}
+				else
+				{
+					hashMAC[0]=chain_pic_buf[((i/3)*3)][1];
+					hashMAC[1]=chain_pic_buf[((i/3)*3)][2];
+					hashMAC[2]=chain_pic_buf[((i/3)*3)][3];
+					hashMAC[3]=chain_pic_buf[((i/3)*3)][4];
+					hashMAC[4]=chain_pic_buf[((i/3)*3)][5];
+					hashMAC[5]=chain_pic_buf[((i/3)*3)][6];
+				}
 #else
-			hashMAC[0]=((last_freq[i][12]&0x0f)<<4)+(last_freq[i][14]&0x0f);
-			hashMAC[1]=((last_freq[i][16]&0x0f)<<4)+(last_freq[i][18]&0x0f);
-			hashMAC[2]=((last_freq[i][20]&0x0f)<<4)+(last_freq[i][22]&0x0f);
-			hashMAC[3]=((last_freq[i][24]&0x0f)<<4)+(last_freq[i][26]&0x0f);
-			hashMAC[4]=((last_freq[i][28]&0x0f)<<4)+(last_freq[i][30]&0x0f);
-			hashMAC[5]=((last_freq[i][32]&0x0f)<<4)+(last_freq[i][34]&0x0f);
+				hashMAC[0]=((last_freq[i][12]&0x0f)<<4)+(last_freq[i][14]&0x0f);
+				hashMAC[1]=((last_freq[i][16]&0x0f)<<4)+(last_freq[i][18]&0x0f);
+				hashMAC[2]=((last_freq[i][20]&0x0f)<<4)+(last_freq[i][22]&0x0f);
+				hashMAC[3]=((last_freq[i][24]&0x0f)<<4)+(last_freq[i][26]&0x0f);
+				hashMAC[4]=((last_freq[i][28]&0x0f)<<4)+(last_freq[i][30]&0x0f);
+				hashMAC[5]=((last_freq[i][32]&0x0f)<<4)+(last_freq[i][34]&0x0f);
 #endif
-			if(memcmp(hashMAC,minerMAC,6)==0)
-			{
-				sprintf(logstr,"OK: Chain[J%d] is for this machine! [minerMAC: %02x:%02x:%02x:%02x:%02x:%02x]\n",i+1,minerMAC[0],minerMAC[1],minerMAC[2],minerMAC[3],minerMAC[4],minerMAC[5]);
-				writeInitLogFile(logstr);
-			}
-			else
-			{
-				sprintf(logstr,"Chain[J%d] [minerMAC: %02x:%02x:%02x:%02x:%02x:%02x hashMAC: %02x:%02x:%02x:%02x:%02x:%02x]\n",i+1, minerMAC[0],minerMAC[1],minerMAC[2],minerMAC[3],minerMAC[4],minerMAC[5],hashMAC[0],hashMAC[1],hashMAC[2],hashMAC[3],hashMAC[4],hashMAC[5]);
-				writeInitLogFile(logstr);
-			}
+				if(memcmp(hashMAC,minerMAC,6)==0)
+				{
+					sprintf(logstr,"OK: Chain[J%d] is for this machine! [minerMAC: %02x:%02x:%02x:%02x:%02x:%02x]\n",i+1,minerMAC[0],minerMAC[1],minerMAC[2],minerMAC[3],minerMAC[4],minerMAC[5]);
+					writeInitLogFile(logstr);
+				}
+				else
+				{
+					sprintf(logstr,"Chain[J%d] [minerMAC: %02x:%02x:%02x:%02x:%02x:%02x hashMAC: %02x:%02x:%02x:%02x:%02x:%02x]\n",i+1, minerMAC[0],minerMAC[1],minerMAC[2],minerMAC[3],minerMAC[4],minerMAC[5],hashMAC[0],hashMAC[1],hashMAC[2],hashMAC[3],hashMAC[4],hashMAC[5]);
+					writeInitLogFile(logstr);
+				}
 
 #ifdef T9_18
-			if(fpga_version>=0xE)
-			{
-				int new_T9_PLUS_chainIndex,new_T9_PLUS_chainOffset;
-				getPICChainIndexOffset(i,&new_T9_PLUS_chainIndex,&new_T9_PLUS_chainOffset);
-				
-				 if(isUseDefaultFreq)
-					 base_freq_index[i]=default_freq_index;
-				 else base_freq_index[i]=chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31];
-				 sprintf(logstr,"Chain:%d base freq=%s\n",i,freq_pll_1385[base_freq_index[i]].freq);
-				 writeInitLogFile(logstr);
-				 
-				 for(j = 0; j < dev->chain_asic_num[i]; j ++)
-				 {
-					 applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]);
-					 
-					 if(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]<MIN_FREQ)
-						 chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]=MIN_FREQ;// error index, set to index of 300M as min
-				
-					 if(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j] > MAX_FREQ)
-						 chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]=MAX_FREQ;// error index, set to index of 850M as max
-						 
-					 if(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j] > max_freq_index)
-						 max_freq_index = chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j];
-				
-					 if(chain_max_freq<chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j])
-						 chain_max_freq=chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j];
-				
-					 if(chain_min_freq>chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j])
-						 chain_min_freq=chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j];
-					 
-				//	   set_frequency_with_addr_plldatai(last_freq[i][j*2+3],0, j * dev->addrInterval,i);
-					 sprintf(logstr,"Asic[%2d]:%s ",j,freq_pll_1385[chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]].freq);
+				if(fpga_version>=0xE)
+				{
+					int new_T9_PLUS_chainIndex,new_T9_PLUS_chainOffset;
+					getPICChainIndexOffset(i,&new_T9_PLUS_chainIndex,&new_T9_PLUS_chainOffset);
+					
+					 if(isUseDefaultFreq)
+						 base_freq_index[i]=default_freq_index;
+					 else base_freq_index[i]=chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31];
+					 sprintf(logstr,"Chain:%d base freq=%s\n",i,freq_pll_1385[base_freq_index[i]].freq);
 					 writeInitLogFile(logstr);
-					 if ((j % 8) == 0)
+					 
+					 for(j = 0; j < dev->chain_asic_num[i]; j ++)
 					 {
-						 sprintf(logstr,"\n");
+						 applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]);
+						 
+						 if(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]<MIN_FREQ)
+							 chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]=MIN_FREQ;// error index, set to index of 300M as min
+					
+						 if(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j] > MAX_FREQ)
+							 chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]=MAX_FREQ;// error index, set to index of 850M as max
+							 
+						 if(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j] > max_freq_index)
+							 max_freq_index = chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j];
+					
+						 if(chain_max_freq<chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j])
+							 chain_max_freq=chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j];
+					
+						 if(chain_min_freq>chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j])
+							 chain_min_freq=chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j];
+						 
+					//	   set_frequency_with_addr_plldatai(last_freq[i][j*2+3],0, j * dev->addrInterval,i);
+						 sprintf(logstr,"Asic[%2d]:%s ",j,freq_pll_1385[chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]].freq);
 						 writeInitLogFile(logstr);
-					 }
-				 }	 
-			}
-			else
-			{
+						 if ((j % 8) == 0)
+						 {
+							 sprintf(logstr,"\n");
+							 writeInitLogFile(logstr);
+						 }
+					 }	 
+				}
+				else
+				{
+					if(isUseDefaultFreq)
+						base_freq_index[i]=default_freq_index;
+					else base_freq_index[i]=chain_pic_buf[((i/3)*3)][7+(i%3)*31];
+					sprintf(logstr,"Chain:%d base freq=%s\n",i,freq_pll_1385[base_freq_index[i]].freq);
+					writeInitLogFile(logstr);
+					
+		            for(j = 0; j < dev->chain_asic_num[i]; j ++)
+		            {
+						applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]);
+						
+						if(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]<MIN_FREQ)
+							chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]=MIN_FREQ;// error index, set to index of 300M as min
+
+						if(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j] > MAX_FREQ)
+							chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]=MAX_FREQ;// error index, set to index of 850M as max
+							
+						if(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j] > max_freq_index)
+							max_freq_index = chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j];
+
+						if(chain_max_freq<chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j])
+							chain_max_freq=chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j];
+
+						if(chain_min_freq>chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j])
+							chain_min_freq=chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j];
+						
+		           //     set_frequency_with_addr_plldatai(last_freq[i][j*2+3],0, j * dev->addrInterval,i);
+						sprintf(logstr,"Asic[%2d]:%s ",j,freq_pll_1385[chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]].freq);
+				   		writeInitLogFile(logstr);
+						if ((j % 8) == 0)
+						{
+							sprintf(logstr,"\n");
+							writeInitLogFile(logstr);
+						}
+		            }	
+				}
+#else
+	        	pic_temp_offset[i]=((last_freq[i][2]&0x0f)<<4)+(last_freq[i][4]&0x0f);
+				sprintf(logstr,"Chain:%d temp offset=%d\n",i,(signed char)pic_temp_offset[i]);
+				writeInitLogFile(logstr);
+
 				if(isUseDefaultFreq)
 					base_freq_index[i]=default_freq_index;
-				else base_freq_index[i]=chain_pic_buf[((i/3)*3)][7+(i%3)*31];
+				else base_freq_index[i]=((last_freq[i][6]&0x0f)<<4)+(last_freq[i][8]&0x0f);
 				sprintf(logstr,"Chain:%d base freq=%s\n",i,freq_pll_1385[base_freq_index[i]].freq);
 				writeInitLogFile(logstr);
 				
 	            for(j = 0; j < dev->chain_asic_num[i]; j ++)
 	            {
-					applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]);
+					step_down = last_freq[i][0] & 0x3f;
+					if(step_down == 0x3f)
+						step_down = 0;
+					last_freq[i][j*2+3] -=step_down;	// down steps based on the PIC's freq
 					
-					if(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]<MIN_FREQ)
-						chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]=MIN_FREQ;// error index, set to index of 300M as min
+					applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,last_freq[i][j*2+3]);
+					
+					if(last_freq[i][j*2+3]<MIN_FREQ)
+						last_freq[i][j*2+3]=MIN_FREQ;// error index, set to index of 300M as min
 
-					if(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j] > MAX_FREQ)
-						chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]=MAX_FREQ;// error index, set to index of 850M as max
+					if(last_freq[i][j*2+3] > MAX_FREQ)
+						last_freq[i][j*2+3]=MAX_FREQ;// error index, set to index of 850M as max
 						
-					if(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j] > max_freq_index)
-						max_freq_index = chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j];
+					if(last_freq[i][j*2+3] > max_freq_index)
+						max_freq_index = last_freq[i][j*2+3];
 
-					if(chain_max_freq<chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j])
-						chain_max_freq=chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j];
+					if(chain_max_freq<last_freq[i][j*2+3])
+						chain_max_freq=last_freq[i][j*2+3];
 
-					if(chain_min_freq>chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j])
-						chain_min_freq=chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j];
+					if(chain_min_freq>last_freq[i][j*2+3])
+						chain_min_freq=last_freq[i][j*2+3];
 					
 	           //     set_frequency_with_addr_plldatai(last_freq[i][j*2+3],0, j * dev->addrInterval,i);
-					sprintf(logstr,"Asic[%2d]:%s ",j,freq_pll_1385[chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]].freq);
+					sprintf(logstr,"Asic[%2d]:%s ",j,freq_pll_1385[last_freq[i][j*2+3]].freq);
 			   		writeInitLogFile(logstr);
 					if ((j % 8) == 0)
 					{
@@ -4298,62 +4368,17 @@ void set_frequency(unsigned short int frequency)
 						writeInitLogFile(logstr);
 					}
 	            }	
-			}
-#else
-        	pic_temp_offset[i]=((last_freq[i][2]&0x0f)<<4)+(last_freq[i][4]&0x0f);
-			sprintf(logstr,"Chain:%d temp offset=%d\n",i,(signed char)pic_temp_offset[i]);
-			writeInitLogFile(logstr);
-
-			if(isUseDefaultFreq)
-				base_freq_index[i]=default_freq_index;
-			else base_freq_index[i]=((last_freq[i][6]&0x0f)<<4)+(last_freq[i][8]&0x0f);
-			sprintf(logstr,"Chain:%d base freq=%s\n",i,freq_pll_1385[base_freq_index[i]].freq);
-			writeInitLogFile(logstr);
-			
-            for(j = 0; j < dev->chain_asic_num[i]; j ++)
-            {
-				step_down = last_freq[i][0] & 0x3f;
-				if(step_down == 0x3f)
-					step_down = 0;
-				last_freq[i][j*2+3] -=step_down;	// down steps based on the PIC's freq
-				
-				applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,last_freq[i][j*2+3]);
-				
-				if(last_freq[i][j*2+3]<MIN_FREQ)
-					last_freq[i][j*2+3]=MIN_FREQ;// error index, set to index of 300M as min
-
-				if(last_freq[i][j*2+3] > MAX_FREQ)
-					last_freq[i][j*2+3]=MAX_FREQ;// error index, set to index of 850M as max
-					
-				if(last_freq[i][j*2+3] > max_freq_index)
-					max_freq_index = last_freq[i][j*2+3];
-
-				if(chain_max_freq<last_freq[i][j*2+3])
-					chain_max_freq=last_freq[i][j*2+3];
-
-				if(chain_min_freq>last_freq[i][j*2+3])
-					chain_min_freq=last_freq[i][j*2+3];
-				
-           //     set_frequency_with_addr_plldatai(last_freq[i][j*2+3],0, j * dev->addrInterval,i);
-				sprintf(logstr,"Asic[%2d]:%s ",j,freq_pll_1385[last_freq[i][j*2+3]].freq);
-		   		writeInitLogFile(logstr);
-				if ((j % 8) == 0)
-				{
-					sprintf(logstr,"\n");
-					writeInitLogFile(logstr);
-				}
-            }	
 #endif
-			sprintf(logstr,"\nChain:%d max freq=%s\n",i,freq_pll_1385[chain_max_freq].freq);
-			writeInitLogFile(logstr);
-			sprintf(logstr,"Chain:%d min freq=%s\n",i,freq_pll_1385[chain_min_freq].freq);
-			writeInitLogFile(logstr);
+				sprintf(logstr,"\nChain:%d max freq=%s\n",i,freq_pll_1385[chain_max_freq].freq);
+				writeInitLogFile(logstr);
+				sprintf(logstr,"Chain:%d min freq=%s\n",i,freq_pll_1385[chain_min_freq].freq);
+				writeInitLogFile(logstr);
 
-			sprintf(logstr,"\n");	
-			writeInitLogFile(logstr);
-        }
-    }
-#endif	// USE_FIXED_FREQ_FROM_CONF
+				sprintf(logstr,"\n");	
+				writeInitLogFile(logstr);
+	        }
+	    }
+	}
 
 	/////////////////// fix freq and set freq //////////////////////////////////////////
 	max_freq_index = 0;
@@ -4391,67 +4416,68 @@ void set_frequency(unsigned short int frequency)
         	sprintf(logstr,"Chain:%d chipnum=%d\n",i,dev->chain_asic_num[i]);
 			writeInitLogFile(logstr);
 
-#ifndef USE_FIXED_FREQ_FROM_CONF
+			if(!isFixedFreqMode())
+			{
 #ifdef T9_18
-			if(fpga_version>=0xE)
-			{
-				int new_T9_PLUS_chainIndex,new_T9_PLUS_chainOffset;
-				getPICChainIndexOffset(i,&new_T9_PLUS_chainIndex,&new_T9_PLUS_chainOffset);
-				sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+2]);
-			}
-			else
-			{
-				sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,chain_pic_buf[((i/3)*3)][7+(i%3)*31+2]);
-			}
+				if(fpga_version>=0xE)
+				{
+					int new_T9_PLUS_chainIndex,new_T9_PLUS_chainOffset;
+					getPICChainIndexOffset(i,&new_T9_PLUS_chainIndex,&new_T9_PLUS_chainOffset);
+					sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+2]);
+				}
+				else
+				{
+					sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,chain_pic_buf[((i/3)*3)][7+(i%3)*31+2]);
+				}
 #else
-			sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,last_freq[i][10]&0x3f);
+				sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,last_freq[i][10]&0x3f);
 #endif
-			writeInitLogFile(logstr);
-			
-        	get_macBytes("eth0",minerMAC);
+				writeInitLogFile(logstr);
+				
+	        	get_macBytes("eth0",minerMAC);
 
 #ifdef T9_18
-			if(fpga_version>=0xE)
-			{
-				int new_T9_PLUS_chainIndex,new_T9_PLUS_chainOffset;
-				getPICChainIndexOffset(i,&new_T9_PLUS_chainIndex,&new_T9_PLUS_chainOffset);
+				if(fpga_version>=0xE)
+				{
+					int new_T9_PLUS_chainIndex,new_T9_PLUS_chainOffset;
+					getPICChainIndexOffset(i,&new_T9_PLUS_chainIndex,&new_T9_PLUS_chainOffset);
 
-				hashMAC[0]=chain_pic_buf[new_T9_PLUS_chainIndex][1];
-				hashMAC[1]=chain_pic_buf[new_T9_PLUS_chainIndex][2];
-				hashMAC[2]=chain_pic_buf[new_T9_PLUS_chainIndex][3];
-				hashMAC[3]=chain_pic_buf[new_T9_PLUS_chainIndex][4];
-				hashMAC[4]=chain_pic_buf[new_T9_PLUS_chainIndex][5];
-				hashMAC[5]=chain_pic_buf[new_T9_PLUS_chainIndex][6];
-			}
-			else
-			{
-				hashMAC[0]=chain_pic_buf[((i/3)*3)][1];
-				hashMAC[1]=chain_pic_buf[((i/3)*3)][2];
-				hashMAC[2]=chain_pic_buf[((i/3)*3)][3];
-				hashMAC[3]=chain_pic_buf[((i/3)*3)][4];
-				hashMAC[4]=chain_pic_buf[((i/3)*3)][5];
-				hashMAC[5]=chain_pic_buf[((i/3)*3)][6];
-			}
+					hashMAC[0]=chain_pic_buf[new_T9_PLUS_chainIndex][1];
+					hashMAC[1]=chain_pic_buf[new_T9_PLUS_chainIndex][2];
+					hashMAC[2]=chain_pic_buf[new_T9_PLUS_chainIndex][3];
+					hashMAC[3]=chain_pic_buf[new_T9_PLUS_chainIndex][4];
+					hashMAC[4]=chain_pic_buf[new_T9_PLUS_chainIndex][5];
+					hashMAC[5]=chain_pic_buf[new_T9_PLUS_chainIndex][6];
+				}
+				else
+				{
+					hashMAC[0]=chain_pic_buf[((i/3)*3)][1];
+					hashMAC[1]=chain_pic_buf[((i/3)*3)][2];
+					hashMAC[2]=chain_pic_buf[((i/3)*3)][3];
+					hashMAC[3]=chain_pic_buf[((i/3)*3)][4];
+					hashMAC[4]=chain_pic_buf[((i/3)*3)][5];
+					hashMAC[5]=chain_pic_buf[((i/3)*3)][6];
+				}
 #else
-			hashMAC[0]=((last_freq[i][12]&0x0f)<<4)+(last_freq[i][14]&0x0f);
-			hashMAC[1]=((last_freq[i][16]&0x0f)<<4)+(last_freq[i][18]&0x0f);
-			hashMAC[2]=((last_freq[i][20]&0x0f)<<4)+(last_freq[i][22]&0x0f);
-			hashMAC[3]=((last_freq[i][24]&0x0f)<<4)+(last_freq[i][26]&0x0f);
-			hashMAC[4]=((last_freq[i][28]&0x0f)<<4)+(last_freq[i][30]&0x0f);
-			hashMAC[5]=((last_freq[i][32]&0x0f)<<4)+(last_freq[i][34]&0x0f);
+				hashMAC[0]=((last_freq[i][12]&0x0f)<<4)+(last_freq[i][14]&0x0f);
+				hashMAC[1]=((last_freq[i][16]&0x0f)<<4)+(last_freq[i][18]&0x0f);
+				hashMAC[2]=((last_freq[i][20]&0x0f)<<4)+(last_freq[i][22]&0x0f);
+				hashMAC[3]=((last_freq[i][24]&0x0f)<<4)+(last_freq[i][26]&0x0f);
+				hashMAC[4]=((last_freq[i][28]&0x0f)<<4)+(last_freq[i][30]&0x0f);
+				hashMAC[5]=((last_freq[i][32]&0x0f)<<4)+(last_freq[i][34]&0x0f);
 #endif
 
-			if(memcmp(hashMAC,minerMAC,6)==0)
-			{
-				sprintf(logstr,"OK: Chain[J%d] is for this machine! [minerMAC: %02x:%02x:%02x:%02x:%02x:%02x]\n",i+1,minerMAC[0],minerMAC[1],minerMAC[2],minerMAC[3],minerMAC[4],minerMAC[5]);
-				writeInitLogFile(logstr);
+				if(memcmp(hashMAC,minerMAC,6)==0)
+				{
+					sprintf(logstr,"OK: Chain[J%d] is for this machine! [minerMAC: %02x:%02x:%02x:%02x:%02x:%02x]\n",i+1,minerMAC[0],minerMAC[1],minerMAC[2],minerMAC[3],minerMAC[4],minerMAC[5]);
+					writeInitLogFile(logstr);
+				}
+				else
+				{
+					sprintf(logstr,"Chain[J%d] [minerMAC: %02x:%02x:%02x:%02x:%02x:%02x hashMAC: %02x:%02x:%02x:%02x:%02x:%02x]\n",i+1, minerMAC[0],minerMAC[1],minerMAC[2],minerMAC[3],minerMAC[4],minerMAC[5],hashMAC[0],hashMAC[1],hashMAC[2],hashMAC[3],hashMAC[4],hashMAC[5]);
+					writeInitLogFile(logstr);
+				}
 			}
-			else
-			{
-				sprintf(logstr,"Chain[J%d] [minerMAC: %02x:%02x:%02x:%02x:%02x:%02x hashMAC: %02x:%02x:%02x:%02x:%02x:%02x]\n",i+1, minerMAC[0],minerMAC[1],minerMAC[2],minerMAC[3],minerMAC[4],minerMAC[5],hashMAC[0],hashMAC[1],hashMAC[2],hashMAC[3],hashMAC[4],hashMAC[5]);
-				writeInitLogFile(logstr);
-			}
-#endif	// USE_FIXED_FREQ_FROM_CONF
 
 #ifdef T9_18
 			if(fpga_version>=0xE)
@@ -4459,13 +4485,14 @@ void set_frequency(unsigned short int frequency)
 				int new_T9_PLUS_chainIndex,new_T9_PLUS_chainOffset;
 				getPICChainIndexOffset(i,&new_T9_PLUS_chainIndex,&new_T9_PLUS_chainOffset);
 				
-#ifndef USE_FIXED_FREQ_FROM_CONF
-				if(isUseDefaultFreq)
-					base_freq_index[i]=default_freq_index;
-				else base_freq_index[i]=chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31];
-				sprintf(logstr,"Chain:%d base freq=%s\n",i,freq_pll_1385[base_freq_index[i]].freq);
-				writeInitLogFile(logstr);
-#endif
+				if(!isFixedFreqMode())
+				{
+					if(isUseDefaultFreq)
+						base_freq_index[i]=default_freq_index;
+					else base_freq_index[i]=chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31];
+					sprintf(logstr,"Chain:%d base freq=%s\n",i,freq_pll_1385[base_freq_index[i]].freq);
+					writeInitLogFile(logstr);
+				}
 				for(j = 0; j < dev->chain_asic_num[i]; j ++)
 				{
 					applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]);
@@ -4485,12 +4512,12 @@ void set_frequency(unsigned short int frequency)
 					if(chain_min_freq>chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j])
 						chain_min_freq=chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j];
 
-#ifdef USE_FIXED_FREQ_FROM_CONF	// when use fixed freq, we add more 1 step on freq index
-					//set_frequency_with_addr_plldatai(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]+1, 0, j * dev->addrInterval, i);
-					set_frequency_with_addr_plldatai(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j], 0, j * dev->addrInterval, i);
-#else
-					set_frequency_with_addr_plldatai(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j], 0, j * dev->addrInterval, i);
-#endif
+					if(isFixedFreqMode())	// when use fixed freq, we add more 1 step on freq index
+						//set_frequency_with_addr_plldatai(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]+1, 0, j * dev->addrInterval, i);
+						set_frequency_with_addr_plldatai(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j], 0, j * dev->addrInterval, i);
+					else
+						set_frequency_with_addr_plldatai(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j], 0, j * dev->addrInterval, i);
+
 					sprintf(logstr,"Asic[%2d]:%s ",j,freq_pll_1385[chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]].freq);
 					writeInitLogFile(logstr);
 					
@@ -4504,13 +4531,14 @@ void set_frequency(unsigned short int frequency)
 			}
 			else
 			{
-#ifndef USE_FIXED_FREQ_FROM_CONF
-				if(isUseDefaultFreq)
-					base_freq_index[i]=default_freq_index;
-				else base_freq_index[i]=chain_pic_buf[((i/3)*3)][7+(i%3)*31];
-				sprintf(logstr,"Chain:%d base freq=%s\n",i,freq_pll_1385[base_freq_index[i]].freq);
-				writeInitLogFile(logstr);
-#endif
+				if(!isFixedFreqMode())
+				{
+					if(isUseDefaultFreq)
+						base_freq_index[i]=default_freq_index;
+					else base_freq_index[i]=chain_pic_buf[((i/3)*3)][7+(i%3)*31];
+					sprintf(logstr,"Chain:%d base freq=%s\n",i,freq_pll_1385[base_freq_index[i]].freq);
+					writeInitLogFile(logstr);
+				}
 	            for(j = 0; j < dev->chain_asic_num[i]; j ++)
 	            {
 					applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]);
@@ -4530,12 +4558,12 @@ void set_frequency(unsigned short int frequency)
 					if(chain_min_freq>chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j])
 						chain_min_freq=chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j];
 
-#ifdef USE_FIXED_FREQ_FROM_CONF	// when use fixed freq, we add more 1 step on freq index
-					//set_frequency_with_addr_plldatai(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]+1, 0, j * dev->addrInterval, i);
-					set_frequency_with_addr_plldatai(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j], 0, j * dev->addrInterval, i);
-#else
-	                set_frequency_with_addr_plldatai(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j], 0, j * dev->addrInterval, i);
-#endif
+					if(isFixedFreqMode())	// when use fixed freq, we add more 1 step on freq index
+						//set_frequency_with_addr_plldatai(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]+1, 0, j * dev->addrInterval, i);
+						set_frequency_with_addr_plldatai(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j], 0, j * dev->addrInterval, i);
+					else
+	                	set_frequency_with_addr_plldatai(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j], 0, j * dev->addrInterval, i);
+
 					sprintf(logstr,"Asic[%2d]:%s ",j,freq_pll_1385[chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]].freq);
 					writeInitLogFile(logstr);
 					
@@ -4547,25 +4575,29 @@ void set_frequency(unsigned short int frequency)
 	            }	
 			}
 #else
-#ifndef USE_FIXED_FREQ_FROM_CONF
-        	pic_temp_offset[i]=((last_freq[i][2]&0x0f)<<4)+(last_freq[i][4]&0x0f);
-			sprintf(logstr,"Chain:%d temp offset=%d\n",i,(signed char)pic_temp_offset[i]);
-			writeInitLogFile(logstr);
+			if(!isFixedFreqMode())
+			{
+	        	pic_temp_offset[i]=((last_freq[i][2]&0x0f)<<4)+(last_freq[i][4]&0x0f);
+				sprintf(logstr,"Chain:%d temp offset=%d\n",i,(signed char)pic_temp_offset[i]);
+				writeInitLogFile(logstr);
 
-			if(isUseDefaultFreq)
-				base_freq_index[i]=default_freq_index;
-			else base_freq_index[i]=((last_freq[i][6]&0x0f)<<4)+(last_freq[i][8]&0x0f);
-			sprintf(logstr,"Chain:%d base freq=%s\n",i,freq_pll_1385[base_freq_index[i]].freq);
-			writeInitLogFile(logstr);
-#endif
+				if(isUseDefaultFreq)
+					base_freq_index[i]=default_freq_index;
+				else base_freq_index[i]=((last_freq[i][6]&0x0f)<<4)+(last_freq[i][8]&0x0f);
+				sprintf(logstr,"Chain:%d base freq=%s\n",i,freq_pll_1385[base_freq_index[i]].freq);
+				writeInitLogFile(logstr);
+			}
+			
             for(j = 0; j < dev->chain_asic_num[i]; j ++)
             {
-#ifndef USE_FIXED_FREQ_FROM_CONF
-				step_down = last_freq[i][0] & 0x3f;
-				if(step_down == 0x3f)
-					step_down = 0;
-				last_freq[i][j*2+3] -=step_down;	// down some steps based on the PIC's freq,  now NOT USED!!!
-#endif
+				if(!isFixedFreqMode())
+				{
+					step_down = last_freq[i][0] & 0x3f;
+					if(step_down == 0x3f)
+						step_down = 0;
+					last_freq[i][j*2+3] -=step_down;	// down some steps based on the PIC's freq,  now NOT USED!!!
+				}
+				
 				applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,last_freq[i][j*2+3]);
 				
 				if(last_freq[i][j*2+3]<MIN_FREQ)
@@ -4583,12 +4615,12 @@ void set_frequency(unsigned short int frequency)
 				if(chain_min_freq>last_freq[i][j*2+3])
 					chain_min_freq=last_freq[i][j*2+3];
 
-#ifdef USE_FIXED_FREQ_FROM_CONF	// when use fixed freq, we add more 1 step on freq index
-				//set_frequency_with_addr_plldatai(last_freq[i][j*2+3]+1,0, j * dev->addrInterval,i);
-				set_frequency_with_addr_plldatai(last_freq[i][j*2+3],0, j * dev->addrInterval,i);
-#else
-                set_frequency_with_addr_plldatai(last_freq[i][j*2+3],0, j * dev->addrInterval,i);
-#endif
+				if(isFixedFreqMode())	// when use fixed freq, we add more 1 step on freq index
+					//set_frequency_with_addr_plldatai(last_freq[i][j*2+3]+1,0, j * dev->addrInterval,i);
+					set_frequency_with_addr_plldatai(last_freq[i][j*2+3],0, j * dev->addrInterval,i);
+				else
+                	set_frequency_with_addr_plldatai(last_freq[i][j*2+3],0, j * dev->addrInterval,i);
+
 				sprintf(logstr,"Asic[%2d]:%s ",j,freq_pll_1385[last_freq[i][j*2+3]].freq);
 				writeInitLogFile(logstr);
 				
@@ -10120,40 +10152,42 @@ int bitmain_c5_init(struct init_config config)
 					reset_iic_pic(i);
 					jump_to_app_CheckAndRestorePIC_T9_18(i);
 					
-#ifndef USE_FIXED_FREQ_FROM_CONF
-					read_freq_badcores(i,chain_pic_buf[i]);
-
-					sprintf(logstr,"Chain[%d] read_freq_badcores : ",i);
-					writeInitLogFile(logstr);
-					for(j=0;j<128;j++)
+					if(!isFixedFreqMode())
 					{
-						sprintf(logstr,"0x%02x ",chain_pic_buf[i][j]);
+						read_freq_badcores(i,chain_pic_buf[i]);
+
+						sprintf(logstr,"Chain[%d] read_freq_badcores : ",i);
+						writeInitLogFile(logstr);
+						for(j=0;j<128;j++)
+						{
+							sprintf(logstr,"0x%02x ",chain_pic_buf[i][j]);
+							writeInitLogFile(logstr);
+						}
+						sprintf(logstr,"\n");
 						writeInitLogFile(logstr);
 					}
-					sprintf(logstr,"\n");
-					writeInitLogFile(logstr);
-#endif
 				}
 
-#ifndef USE_FIXED_FREQ_FROM_CONF
-				if(chain_pic_buf[new_T9_PLUS_chainIndex][0] == FREQ_MAGIC)
+				if(!isFixedFreqMode())
 				{
-					chain_voltage_value[i]=chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+1]*10;
+					if(chain_pic_buf[new_T9_PLUS_chainIndex][0] == FREQ_MAGIC)
+					{
+						chain_voltage_value[i]=chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+1]*10;
 
-					sprintf(logstr,"Chain[J%d] has backup chain_voltage=%d\n",i+1,chain_voltage_value[i]);
+						sprintf(logstr,"Chain[J%d] has backup chain_voltage=%d\n",i+1,chain_voltage_value[i]);
+						writeInitLogFile(logstr);
+					}
+
+					lowest_testOK_temp[i]=(signed char)chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+3];
+
+					sprintf(logstr,"Chain[J%d] test patten OK temp=%d\n",i+1,lowest_testOK_temp[i]);
 					writeInitLogFile(logstr);
-				}
-
-				lowest_testOK_temp[i]=(signed char)chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+3];
-
-				sprintf(logstr,"Chain[J%d] test patten OK temp=%d\n",i+1,lowest_testOK_temp[i]);
-				writeInitLogFile(logstr);
 
 #ifdef DISABLE_TEMP_PROTECT	// for debug
-				if(lowest_testOK_temp[i]<MIN_TEMP_CONTINUE_DOWN_FAN)
-					lowest_testOK_temp[i]=MIN_TEMP_CONTINUE_DOWN_FAN;	// if too low, we just set MIN_TEMP_CONTINUE_DOWN_FAN
+					if(lowest_testOK_temp[i]<MIN_TEMP_CONTINUE_DOWN_FAN)
+						lowest_testOK_temp[i]=MIN_TEMP_CONTINUE_DOWN_FAN;	// if too low, we just set MIN_TEMP_CONTINUE_DOWN_FAN
 #endif
-#endif	// #ifndef USE_FIXED_FREQ_FROM_CONF
+				}
 				pthread_mutex_unlock(&iic_mutex);
         	}
 			else
@@ -10167,30 +10201,30 @@ int bitmain_c5_init(struct init_config config)
 					sleep(1);
 					jump_to_app_CheckAndRestorePIC_T9_18(i);
 					
-#ifndef USE_FIXED_FREQ_FROM_CONF
-					read_freq_badcores(i,chain_pic_buf[((i/3)*3)]);
-#endif
+					if(!isFixedFreqMode())
+						read_freq_badcores(i,chain_pic_buf[((i/3)*3)]);
 				}
 
-#ifndef USE_FIXED_FREQ_FROM_CONF
-				if(chain_pic_buf[((i/3)*3)][0] == FREQ_MAGIC)
+				if(!isFixedFreqMode())
 				{
-					chain_voltage_value[i]=chain_pic_buf[((i/3)*3)][7+(i%3)*31+1]*10;
+					if(chain_pic_buf[((i/3)*3)][0] == FREQ_MAGIC)
+					{
+						chain_voltage_value[i]=chain_pic_buf[((i/3)*3)][7+(i%3)*31+1]*10;
 
-					sprintf(logstr,"Chain[J%d] has backup chain_voltage=%d\n",i+1,chain_voltage_value[i]);
+						sprintf(logstr,"Chain[J%d] has backup chain_voltage=%d\n",i+1,chain_voltage_value[i]);
+						writeInitLogFile(logstr);
+					}
+
+					lowest_testOK_temp[i]=(signed char)chain_pic_buf[((i/3)*3)][7+(i%3)*31+3];
+
+					sprintf(logstr,"Chain[J%d] test patten OK temp=%d\n",i+1,lowest_testOK_temp[i]);
 					writeInitLogFile(logstr);
-				}
-
-				lowest_testOK_temp[i]=(signed char)chain_pic_buf[((i/3)*3)][7+(i%3)*31+3];
-
-				sprintf(logstr,"Chain[J%d] test patten OK temp=%d\n",i+1,lowest_testOK_temp[i]);
-				writeInitLogFile(logstr);
 
 #ifdef DISABLE_TEMP_PROTECT	// for debug
-				if(lowest_testOK_temp[i]<MIN_TEMP_CONTINUE_DOWN_FAN)
-					lowest_testOK_temp[i]=MIN_TEMP_CONTINUE_DOWN_FAN;	// if too low, we just set MIN_TEMP_CONTINUE_DOWN_FAN
+					if(lowest_testOK_temp[i]<MIN_TEMP_CONTINUE_DOWN_FAN)
+						lowest_testOK_temp[i]=MIN_TEMP_CONTINUE_DOWN_FAN;	// if too low, we just set MIN_TEMP_CONTINUE_DOWN_FAN
 #endif
-#endif	// #ifndef USE_FIXED_FREQ_FROM_CONF
+				}
 	            pthread_mutex_unlock(&iic_mutex);
 			}
         }
@@ -10204,44 +10238,45 @@ int bitmain_c5_init(struct init_config config)
             reset_iic_pic(i);
             cgsleep_ms(500);
 
-#ifndef USE_FIXED_FREQ_FROM_CONF
-            set_pic_iic_flash_addr_pointer(i, PIC_FLASH_POINTER_FREQ_START_ADDRESS_H, PIC_FLASH_POINTER_FREQ_START_ADDRESS_L);
-            get_data_from_pic_flash(i, last_freq[i]);
-            get_data_from_pic_flash(i, last_freq[i]+16);
-            get_data_from_pic_flash(i, last_freq[i]+32);
-            get_data_from_pic_flash(i, last_freq[i]+48);
-			get_data_from_pic_flash(i, last_freq[i]+64);
-			get_data_from_pic_flash(i, last_freq[i]+80);
-			get_data_from_pic_flash(i, last_freq[i]+96);
-			get_data_from_pic_flash(i, last_freq[i]+112);
-
-			set_pic_iic_flash_addr_pointer(i, PIC_FLASH_POINTER_BADCORE_START_ADDRESS_H, PIC_FLASH_POINTER_BADCORE_START_ADDRESS_L);
-            get_data_from_pic_flash(i, badcore_num_buf[i]);
-            get_data_from_pic_flash(i, badcore_num_buf[i]+16);
-            get_data_from_pic_flash(i, badcore_num_buf[i]+32);
-            get_data_from_pic_flash(i, badcore_num_buf[i]+48);
-
-			if(last_freq[i][1] == FREQ_MAGIC && last_freq[i][40] == 0x23)	//0x23 is backup voltage magic number
+			if(!isFixedFreqMode())
 			{
-				chain_voltage_value[i]=(((last_freq[i][36]&0x0f)<<4)+(last_freq[i][38]&0x0f))*10;
+	            set_pic_iic_flash_addr_pointer(i, PIC_FLASH_POINTER_FREQ_START_ADDRESS_H, PIC_FLASH_POINTER_FREQ_START_ADDRESS_L);
+	            get_data_from_pic_flash(i, last_freq[i]);
+	            get_data_from_pic_flash(i, last_freq[i]+16);
+	            get_data_from_pic_flash(i, last_freq[i]+32);
+	            get_data_from_pic_flash(i, last_freq[i]+48);
+				get_data_from_pic_flash(i, last_freq[i]+64);
+				get_data_from_pic_flash(i, last_freq[i]+80);
+				get_data_from_pic_flash(i, last_freq[i]+96);
+				get_data_from_pic_flash(i, last_freq[i]+112);
 
-				sprintf(logstr,"Chain[J%d] has backup chain_voltage=%d\n",i+1,chain_voltage_value[i]);
-				writeInitLogFile(logstr);
-			}
+				set_pic_iic_flash_addr_pointer(i, PIC_FLASH_POINTER_BADCORE_START_ADDRESS_H, PIC_FLASH_POINTER_BADCORE_START_ADDRESS_L);
+	            get_data_from_pic_flash(i, badcore_num_buf[i]);
+	            get_data_from_pic_flash(i, badcore_num_buf[i]+16);
+	            get_data_from_pic_flash(i, badcore_num_buf[i]+32);
+	            get_data_from_pic_flash(i, badcore_num_buf[i]+48);
 
-			if(last_freq[i][1] == FREQ_MAGIC && last_freq[i][46] == 0x23)	//0x23 is board temp magic number
-			{
-				lowest_testOK_temp[i]=(signed char)(((last_freq[i][42]&0x0f)<<4)+(last_freq[i][44]&0x0f));
+				if(last_freq[i][1] == FREQ_MAGIC && last_freq[i][40] == 0x23)	//0x23 is backup voltage magic number
+				{
+					chain_voltage_value[i]=(((last_freq[i][36]&0x0f)<<4)+(last_freq[i][38]&0x0f))*10;
 
-				sprintf(logstr,"Chain[J%d] test patten OK temp=%d\n",i+1,lowest_testOK_temp[i]);
-				writeInitLogFile(logstr);
+					sprintf(logstr,"Chain[J%d] has backup chain_voltage=%d\n",i+1,chain_voltage_value[i]);
+					writeInitLogFile(logstr);
+				}
+
+				if(last_freq[i][1] == FREQ_MAGIC && last_freq[i][46] == 0x23)	//0x23 is board temp magic number
+				{
+					lowest_testOK_temp[i]=(signed char)(((last_freq[i][42]&0x0f)<<4)+(last_freq[i][44]&0x0f));
+
+					sprintf(logstr,"Chain[J%d] test patten OK temp=%d\n",i+1,lowest_testOK_temp[i]);
+					writeInitLogFile(logstr);
 
 #ifdef DISABLE_TEMP_PROTECT	// for debug
-				if(lowest_testOK_temp[i]<MIN_TEMP_CONTINUE_DOWN_FAN)
-					lowest_testOK_temp[i]=MIN_TEMP_CONTINUE_DOWN_FAN;	// if too low, we just set MIN_TEMP_CONTINUE_DOWN_FAN
+					if(lowest_testOK_temp[i]<MIN_TEMP_CONTINUE_DOWN_FAN)
+						lowest_testOK_temp[i]=MIN_TEMP_CONTINUE_DOWN_FAN;	// if too low, we just set MIN_TEMP_CONTINUE_DOWN_FAN
 #endif
+				}
 			}
-#endif	// USE_FIXED_FREQ_FROM_CONF
 
             jump_to_app_CheckAndRestorePIC(i);
 			
@@ -10296,71 +10331,73 @@ int bitmain_c5_init(struct init_config config)
         }
     }
 
-#ifdef USE_FIXED_FREQ_FROM_CONF
-	// we must set voltage value according to the freq of config file!
-	for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
-    {
-        if(dev->chain_exist[i] == 1)
-        {
-        	chain_voltage_value[i] = getFixedFreqVoltageValue(config_parameter.frequency);
-			chain_voltage_pic[i] = getPICvoltageFromValue(chain_voltage_value[i]);
-			
-			sprintf(logstr,"Fix freq=%d Chain[%d] voltage_pic=%d value=%d\n",config_parameter.frequency,i,chain_voltage_pic[i],chain_voltage_value[i]);
-			writeInitLogFile(logstr);
-        }
-	}
-#endif
-
-#ifndef USE_FIXED_FREQ_FROM_CONF
-	cgsleep_ms(100);
-	for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
+	if(isFixedFreqMode())
 	{
-		if(dev->chain_exist[i] == 1)
-		{
-			int vol_value;
-			unsigned char vol_pic;
-			pthread_mutex_lock(&iic_mutex);
-#ifndef ENABLE_HIGH_VOLTAGE_OPENCORE
-			chain_voltage_pic[i] = get_pic_voltage(i);
-#endif
-			vol_value = getVolValueFromPICvoltage(chain_voltage_pic[i]);
-
-			sprintf(logstr,"Chain[J%d] orignal chain_voltage_pic=%d value=%d\n",i+1,chain_voltage_pic[i],vol_value);
-			writeInitLogFile(logstr);
-
-#ifdef T9_18
-			if(getChainPICMagicNumber(i)== FREQ_MAGIC)
-#else
-			if(last_freq[i][1] == FREQ_MAGIC && last_freq[i][40] == 0x23)	//0x23 is backup voltage magic number
-#endif
-			{
-#ifndef DEBUG_KEEP_USE_PIC_VOLTAGE_WITHOUT_CHECKING_VOLTAGE_OF_SEARCHFREQ
-				if(vol_value != chain_voltage_value[i])	// if not equal, we need force to set backup voltage to hashbaord!!!
-				{
-					vol_pic=getPICvoltageFromValue(chain_voltage_value[i]);
-					
-					sprintf(logstr,"Chain[J%d] will use backup chain_voltage_pic=%d [%d]\n",i+1,chain_voltage_value[i],vol_pic);
-					writeInitLogFile(logstr);
-
-					chain_voltage_pic[i] = vol_pic;
-					
-#ifndef ENABLE_HIGH_VOLTAGE_OPENCORE
-#ifndef T9_18	// T9_18 only can call enable_pic_dac once after jump to app!!!
-					set_pic_voltage(i, vol_pic);
-					enable_pic_dac(i);
-#endif
-#endif
-					sprintf(logstr,"Chain[J%d] get working chain_voltage_pic=%d\n",i+1,chain_voltage_pic[i]);
-					writeInitLogFile(logstr);
-				}
-#endif
-			}
-			
-			pthread_mutex_unlock(&iic_mutex);
+		// we must set voltage value according to the freq of config file!
+		for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
+	    {
+	        if(dev->chain_exist[i] == 1)
+	        {
+	        	chain_voltage_value[i] = getFixedFreqVoltageValue(config_parameter.frequency);
+				chain_voltage_pic[i] = getPICvoltageFromValue(chain_voltage_value[i]);
+				
+				sprintf(logstr,"Fix freq=%d Chain[%d] voltage_pic=%d value=%d\n",config_parameter.frequency,i,chain_voltage_pic[i],chain_voltage_value[i]);
+				writeInitLogFile(logstr);
+	        }
 		}
 	}
-    cgsleep_ms(1000);
-#endif	// USE_FIXED_FREQ_FROM_CONF
+
+	if(!isFixedFreqMode())
+	{
+		cgsleep_ms(100);
+		for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
+		{
+			if(dev->chain_exist[i] == 1)
+			{
+				int vol_value;
+				unsigned char vol_pic;
+				pthread_mutex_lock(&iic_mutex);
+#ifndef ENABLE_HIGH_VOLTAGE_OPENCORE
+				chain_voltage_pic[i] = get_pic_voltage(i);
+#endif
+				vol_value = getVolValueFromPICvoltage(chain_voltage_pic[i]);
+
+				sprintf(logstr,"Chain[J%d] orignal chain_voltage_pic=%d value=%d\n",i+1,chain_voltage_pic[i],vol_value);
+				writeInitLogFile(logstr);
+
+#ifdef T9_18
+				if(getChainPICMagicNumber(i)== FREQ_MAGIC)
+#else
+				if(last_freq[i][1] == FREQ_MAGIC && last_freq[i][40] == 0x23)	//0x23 is backup voltage magic number
+#endif
+				{
+#ifndef DEBUG_KEEP_USE_PIC_VOLTAGE_WITHOUT_CHECKING_VOLTAGE_OF_SEARCHFREQ
+					if(vol_value != chain_voltage_value[i])	// if not equal, we need force to set backup voltage to hashbaord!!!
+					{
+						vol_pic=getPICvoltageFromValue(chain_voltage_value[i]);
+						
+						sprintf(logstr,"Chain[J%d] will use backup chain_voltage_pic=%d [%d]\n",i+1,chain_voltage_value[i],vol_pic);
+						writeInitLogFile(logstr);
+
+						chain_voltage_pic[i] = vol_pic;
+						
+#ifndef ENABLE_HIGH_VOLTAGE_OPENCORE
+#ifndef T9_18	// T9_18 only can call enable_pic_dac once after jump to app!!!
+						set_pic_voltage(i, vol_pic);
+						enable_pic_dac(i);
+#endif
+#endif
+						sprintf(logstr,"Chain[J%d] get working chain_voltage_pic=%d\n",i+1,chain_voltage_pic[i]);
+						writeInitLogFile(logstr);
+					}
+#endif
+				}
+				
+				pthread_mutex_unlock(&iic_mutex);
+			}
+		}
+	    cgsleep_ms(1000);
+	}
 
 #ifdef T9_18
 	// set voltage and enable it for only once!!!
@@ -10627,52 +10664,53 @@ int bitmain_c5_init(struct init_config config)
 
 	set_PWM(MAX_PWM_PERCENT);
 
-#ifndef USE_FIXED_FREQ_FROM_CONF
-#ifndef T9_18
-	// below process is check voltage and make sure not too high, must can be processed after set_frequency, because of GetTotalRate function need init to support fixed freq old miner S9
-	for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)  // here must use i from 0 in for loop, because we use j to get the index as config file's voltage value
+	if(!isFixedFreqMode())
 	{
-		int vol_value_limited,vol_value;
-		unsigned char vol_pic;
-		
-		if(dev->chain_exist[i] == 0)
-			continue;
-
-		if(isChainEnough())
+#ifndef T9_18
+		// below process is check voltage and make sure not too high, must can be processed after set_frequency, because of GetTotalRate function need init to support fixed freq old miner S9
+		for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)  // here must use i from 0 in for loop, because we use j to get the index as config file's voltage value
 		{
-			vol_pic=chain_voltage_pic[i];
-			vol_value = getVolValueFromPICvoltage(vol_pic);
-			vol_value_limited=getVoltageLimitedFromHashrate(GetTotalRate());
+			int vol_value_limited,vol_value;
+			unsigned char vol_pic;
+			
+			if(dev->chain_exist[i] == 0)
+				continue;
+
+			if(isChainEnough())
+			{
+				vol_pic=chain_voltage_pic[i];
+				vol_value = getVolValueFromPICvoltage(vol_pic);
+				vol_value_limited=getVoltageLimitedFromHashrate(GetTotalRate());
 
 #ifdef DEBUG_KEEP_USE_PIC_VOLTAGE_WITHOUT_CHECKING_VOLTAGE_OF_SEARCHFREQ
-			if(vol_value>=HIGHEST_VOLTAGE_LIMITED_HW)	// we keep use pic voltage, but we still need check voltage can not be the highest voltage!
+				if(vol_value>=HIGHEST_VOLTAGE_LIMITED_HW)	// we keep use pic voltage, but we still need check voltage can not be the highest voltage!
 #endif
-			{
-				sprintf(logstr,"get PIC voltage=%d on chain[%d], check: must be < %d\n",vol_value,i,vol_value_limited);
-				writeInitLogFile(logstr);
-
-				if(vol_value > vol_value_limited)	// we will set voltage to the highest voltage for the last chance on test patten
 				{
-					sprintf(logstr,"will set the voltage limited on chain[%d], change voltage=%d\n",i,vol_value_limited);
+					sprintf(logstr,"get PIC voltage=%d on chain[%d], check: must be < %d\n",vol_value,i,vol_value_limited);
 					writeInitLogFile(logstr);
 
-					vol_pic=getPICvoltageFromValue(vol_value_limited);
-					sprintf(logstr,"now set pic voltage=%d on chain[%d]\n",vol_pic,i);
-					writeInitLogFile(logstr);
+					if(vol_value > vol_value_limited)	// we will set voltage to the highest voltage for the last chance on test patten
+					{
+						sprintf(logstr,"will set the voltage limited on chain[%d], change voltage=%d\n",i,vol_value_limited);
+						writeInitLogFile(logstr);
 
-					chain_voltage_pic[i]=vol_pic;
-					
+						vol_pic=getPICvoltageFromValue(vol_value_limited);
+						sprintf(logstr,"now set pic voltage=%d on chain[%d]\n",vol_pic,i);
+						writeInitLogFile(logstr);
+
+						chain_voltage_pic[i]=vol_pic;
+						
 #ifndef ENABLE_HIGH_VOLTAGE_OPENCORE
-					pthread_mutex_lock(&iic_mutex);
-					set_pic_voltage(i, vol_pic);
-					pthread_mutex_unlock(&iic_mutex);
+						pthread_mutex_lock(&iic_mutex);
+						set_pic_voltage(i, vol_pic);
+						pthread_mutex_unlock(&iic_mutex);
 #endif
+					}
 				}
 			}
 		}
-	}
 #endif
-#endif	// USE_FIXED_FREQ_FROM_CONF
+	}
 
 #ifdef ENABLE_HIGH_VOLTAGE_OPENCORE
 	for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
@@ -10835,83 +10873,84 @@ int bitmain_c5_init(struct init_config config)
     pthread_detach(read_temp_id->pth);
 
 #ifndef CAPTURE_PATTEN
-#ifndef USE_FIXED_FREQ_FROM_CONF
+	if(!isFixedFreqMode())
+	{
 #ifdef ENABLE_PREHEAT
 
 #ifdef DEBUG_XILINX_NONCE_NOTENOUGH
-	set_bmc_counter(0);
-	sprintf(logstr,"reset bmc counter=0x%08x\n",read_bmc_counter());
-	writeInitLogFile(logstr);
+		set_bmc_counter(0);
+		sprintf(logstr,"reset bmc counter=0x%08x\n",read_bmc_counter());
+		writeInitLogFile(logstr);
 #endif
-	//if(readRebootTestNum()<=0)		// we will do preheat every time, even in reboot test mode.
-	{
-		doTestPatten=true;
-		sleep(3);
-		
-		for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
+		//if(readRebootTestNum()<=0)		// we will do preheat every time, even in reboot test mode.
 		{
-			if(dev->chain_exist[i] == 1)
+			doTestPatten=true;
+			sleep(3);
+			
+			for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
 			{
+				if(dev->chain_exist[i] == 1)
+				{
 #ifdef T9_18
-				memcpy(chain_pic_buf[i],chip_last_freq[i],128);	// restore the real freq for chips
+					memcpy(chain_pic_buf[i],chip_last_freq[i],128);	// restore the real freq for chips
 #else
-				memcpy(last_freq[i],chip_last_freq[i],256);	// restore the real freq for chips
+					memcpy(last_freq[i],chip_last_freq[i],256);	// restore the real freq for chips
 #endif
+				}
 			}
-		}
 
-		someBoardUpVoltage=false;
-		test_result=clement_doTestBoard(true);
+			someBoardUpVoltage=false;
+			test_result=clement_doTestBoard(true);
 
 #ifdef ENABLE_REINIT_WHEN_TESTFAILED
-		//if(!test_result)
-		{
-			pthread_mutex_lock(&opencore_readtemp_mutex);
-			doTestPatten=false;
-			bitmain_reinit();
-			
-			// clement debug to show ticket mask!!!
-			check_asic_reg(TICKET_MASK);
-			
-#ifdef FASTER_TESTPATTEN
-			if(opt_multi_version)
-				set_time_out_control((((dev->timeout/10) * opt_multi_version) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
-			else
-				set_time_out_control(((dev->timeout/10) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
-#endif
-
-			doTestPatten=true;
-			pthread_mutex_unlock(&opencore_readtemp_mutex);
-			clement_doTestBoard(true);
-		}
-#endif
-
-		for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
-		{
-			if(dev->chain_exist[i] == 1)
+			//if(!test_result)
 			{
-#ifdef T9_18
-				memcpy(chain_pic_buf[i],show_last_freq[i],128); // restore the user freq for showed on web for users
-#else
-				memcpy(last_freq[i],show_last_freq[i],256); // restore the user freq for showed on web for users
+				pthread_mutex_lock(&opencore_readtemp_mutex);
+				doTestPatten=false;
+				bitmain_reinit();
+				
+				// clement debug to show ticket mask!!!
+				check_asic_reg(TICKET_MASK);
+				
+#ifdef FASTER_TESTPATTEN
+				if(opt_multi_version)
+					set_time_out_control((((dev->timeout/10) * opt_multi_version) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
+				else
+					set_time_out_control(((dev->timeout/10) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
 #endif
+
+				doTestPatten=true;
+				pthread_mutex_unlock(&opencore_readtemp_mutex);
+				clement_doTestBoard(true);
 			}
+#endif
+
+			for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
+			{
+				if(dev->chain_exist[i] == 1)
+				{
+#ifdef T9_18
+					memcpy(chain_pic_buf[i],show_last_freq[i],128); // restore the user freq for showed on web for users
+#else
+					memcpy(last_freq[i],show_last_freq[i],256); // restore the user freq for showed on web for users
+#endif
+				}
+			}
+
+			// must re-set these two address to FPGA
+			set_nonce2_and_job_id_store_address(PHY_MEM_NONCE2_JOBID_ADDRESS);
+		    set_job_start_address(PHY_MEM_JOB_START_ADDRESS_1);
+
+			doTestPatten=false;
 		}
-
-		// must re-set these two address to FPGA
-		set_nonce2_and_job_id_store_address(PHY_MEM_NONCE2_JOBID_ADDRESS);
-	    set_job_start_address(PHY_MEM_JOB_START_ADDRESS_1);
-
-		doTestPatten=false;
-	}
 
 #ifdef DEBUG_XILINX_NONCE_NOTENOUGH
-	sprintf(logstr,"After TEST bmc counter=0x%08x\n",read_bmc_counter());
-	writeInitLogFile(logstr);
+		sprintf(logstr,"After TEST bmc counter=0x%08x\n",read_bmc_counter());
+		writeInitLogFile(logstr);
 #endif
 
 #endif
-#endif
+	}
 #endif
 
     //clear_nonce_fifo();

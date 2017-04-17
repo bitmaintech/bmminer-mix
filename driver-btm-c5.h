@@ -215,9 +215,6 @@ extern unsigned int PHY_MEM_NONCE2_JOBID_ADDRESS;
 //#define S9_63	// if defined , for S9  63 chips
 //#define T9_18 	// if defined , for T9+  18 chips
 
-
-#define USE_FIXED_FREQ_FROM_CONF	// if defined, we will use fixed freq from config file, and will not use freq in PIC
-
 #define RESET_KEEP_TIME		3	// keep reset signal for 1 secnods
 #undef USE_OPENCORE_ONEBYONE	// if defined, we will use open core one by one, do 114 times on open core for each chain!  but NOT WORKS!??
 #define ENABLE_PREHEAT
