@@ -3967,7 +3967,7 @@ void writeInitLogFile(char *logstr)
 		fclose(fd);
 	}
 	pthread_mutex_unlock(&init_log_mutex);
-	printf(logstr);
+	//printf(logstr);
 }
 
 void clearInitLogFile()
@@ -5959,7 +5959,7 @@ void writeLogFile(char *logstr)
 		fclose(fd);	
 	}
 //	updateLogFile();
-	printf(logstr);
+//	printf(logstr);
 }
 
 void updateLogFile()
