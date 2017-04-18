@@ -4265,7 +4265,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
 
                         for(j = 0; j < dev->chain_asic_num[i]; j ++)
                         {
-                            applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]);
+                            applog(LOG_DEBUG,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]);
 
                             if(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]<MIN_FREQ)
                                 chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]=MIN_FREQ;// error index, set to index of 300M as min
@@ -4302,7 +4302,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
 
                         for(j = 0; j < dev->chain_asic_num[i]; j ++)
                         {
-                            applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]);
+                            applog(LOG_DEBUG,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]);
 
                             if(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]<MIN_FREQ)
                                 chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]=MIN_FREQ;// error index, set to index of 300M as min
@@ -4347,7 +4347,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
                             step_down = 0;
                         last_freq[i][j*2+3] -=step_down;    // down steps based on the PIC's freq
 
-                        applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,last_freq[i][j*2+3]);
+                        applog(LOG_DEBUG,"%s: freq index=%d\n", __FUNCTION__,last_freq[i][j*2+3]);
 
                         if(last_freq[i][j*2+3]<MIN_FREQ)
                             last_freq[i][j*2+3]=MIN_FREQ;// error index, set to index of 300M as min
@@ -4500,7 +4500,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
                     }
                     for(j = 0; j < dev->chain_asic_num[i]; j ++)
                     {
-                        applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]);
+                        applog(LOG_DEBUG,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]);
 
                         if(chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]<MIN_FREQ)
                             chain_pic_buf[new_T9_PLUS_chainIndex][7+new_T9_PLUS_chainOffset*31+4+j]=MIN_FREQ;// error index, set to index of 300M as min
@@ -4546,7 +4546,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
                     }
                     for(j = 0; j < dev->chain_asic_num[i]; j ++)
                     {
-                        applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]);
+                        applog(LOG_DEBUG,"%s: freq index=%d\n", __FUNCTION__,chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]);
 
                         if(chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]<MIN_FREQ)
                             chain_pic_buf[((i/3)*3)][7+(i%3)*31+4+j]=MIN_FREQ;// error index, set to index of 300M as min
@@ -4603,7 +4603,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
                         last_freq[i][j*2+3] -=step_down;    // down some steps based on the PIC's freq,  now NOT USED!!!
                     }
 
-                    applog(LOG_NOTICE,"%s: freq index=%d\n", __FUNCTION__,last_freq[i][j*2+3]);
+                    applog(LOG_DEBUG,"%s: freq index=%d\n", __FUNCTION__,last_freq[i][j*2+3]);
 
                     if(last_freq[i][j*2+3]<MIN_FREQ)
                         last_freq[i][j*2+3]=MIN_FREQ;// error index, set to index of 300M as min
@@ -5580,7 +5580,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
         remote = remote - 64;
 #endif
         t_re_re = (1.008 * (remote) - (1.11 - 1.008) * 273.15) / 1.11;
-        applog(LOG_NOTICE,"remote : %"PRId16" temp : %f",remote,t_re_re);
+        applog(LOG_DEBUG,"remote : %"PRId16" temp : %f",remote,t_re_re);
         return (int16_t)(t_re_re);
     }
 

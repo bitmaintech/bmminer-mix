@@ -1555,6 +1555,15 @@ static struct opt_table opt_config_table[] =
                  set_int_0_to_9999,opt_show_intval, &opt_bitmain_c5_voltage,
                  "Set voltage"),
 
+	
+	OPT_WITHOUT_ARG("--fixed-freq",
+				   opt_set_bool, &opt_fixed_freq,
+				   "Set bitmain miner use fixed freq"),
+				   
+   OPT_WITHOUT_ARG("--no-pre-heat",
+				   opt_set_false, &opt_pre_heat,
+				   "Set bitmain miner doesn't pre heat"),
+
 
 #endif
 
@@ -1605,14 +1614,6 @@ static struct opt_table opt_config_table[] =
                     opt_set_bool, &opt_bitmain_new_cmd_type_vil,
                     "Set bitmain miner use vil mode"),
                     
-    OPT_WITHOUT_ARG("--fixed-freq",
-                    opt_set_bool, &opt_fixed_freq,
-                    "Set bitmain miner use vil mode"),
-                    
-    OPT_WITHOUT_ARG("--no-pre-heat",
-                    opt_set_false, &opt_pre_heat,
-                    "Set bitmain miner use vil mode"),
-
 	OPT_WITHOUT_ARG("--bitmain-fan-ctrl",
              opt_set_bool, &opt_bitmain_fan_ctrl,
             "Enable bitmain miner fan control"),
