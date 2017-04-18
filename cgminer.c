@@ -1604,6 +1604,14 @@ static struct opt_table opt_config_table[] =
     OPT_WITHOUT_ARG("--bitmain-use-vil",
                     opt_set_bool, &opt_bitmain_new_cmd_type_vil,
                     "Set bitmain miner use vil mode"),
+                    
+    OPT_WITHOUT_ARG("--fixed-freq",
+                    opt_set_bool, &opt_fixed_freq,
+                    "Set bitmain miner use vil mode"),
+                    
+    OPT_WITHOUT_ARG("--no-pre-heat",
+                    opt_set_false, &opt_pre_heat,
+                    "Set bitmain miner use vil mode"),
 
 	OPT_WITHOUT_ARG("--bitmain-fan-ctrl",
              opt_set_bool, &opt_bitmain_fan_ctrl,

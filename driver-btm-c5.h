@@ -879,13 +879,16 @@ static struct freq_pll freq_pll_1385[] = {
 };
 
 extern bool opt_bitmain_fan_ctrl;
+extern bool opt_bitmain_new_cmd_type_vil;
+extern bool opt_fixed_freq;
+extern bool opt_pre_heat;
 extern int opt_bitmain_fan_pwm;
 extern int opt_bitmain_c5_freq;
 extern int opt_bitmain_c5_voltage;
-extern bool opt_bitmain_new_cmd_type_vil;
 extern int ADD_FREQ;
 extern int ADD_FREQ1;
 extern int fpga_version;
+
 
 #endif
 
