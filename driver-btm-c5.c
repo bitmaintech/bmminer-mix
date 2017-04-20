@@ -10437,7 +10437,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
 #endif
 
         if(opt_multi_version)
-            set_dhash_acc_control(get_dhash_acc_control() & (~OPERATION_MODE) | VIL_MODE | VIL_MIDSTATE_NUMBER(opt_multi_version) & (~NEW_BLOCK) & (~RUN_BIT));
+            set_dhash_acc_control(get_dhash_acc_control() & (~OPERATION_MODE) | VIL_MIDSTATE_NUMBER(1) | VIL_MODE  & (~NEW_BLOCK) & (~RUN_BIT));
         cgsleep_ms(10);
 
         //set core number
@@ -11397,20 +11397,20 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
             if(!opt_multi_version)
             {
                 set_dhash_acc_control((unsigned int)get_dhash_acc_control() | NEW_BLOCK );
-                set_dhash_acc_control((unsigned int)get_dhash_acc_control() | RUN_BIT | OPERATION_MODE);
+                set_dhash_acc_control((unsigned int)get_dhash_acc_control() | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT | OPERATION_MODE);
             }
             else
             {
                 set_dhash_acc_control((unsigned int)get_dhash_acc_control() | NEW_BLOCK );
-                set_dhash_acc_control((unsigned int)get_dhash_acc_control() | RUN_BIT | OPERATION_MODE |VIL_MODE);
+                set_dhash_acc_control((unsigned int)get_dhash_acc_control() | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT | OPERATION_MODE |VIL_MODE);
             }
         }
         else
         {
             if(!opt_multi_version)
-                set_dhash_acc_control((unsigned int)get_dhash_acc_control() | RUN_BIT| OPERATION_MODE );
+                set_dhash_acc_control((unsigned int)get_dhash_acc_control() | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT| OPERATION_MODE );
             else
-                set_dhash_acc_control((unsigned int)get_dhash_acc_control() | RUN_BIT| OPERATION_MODE |VIL_MODE);
+                set_dhash_acc_control((unsigned int)get_dhash_acc_control() | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT| OPERATION_MODE |VIL_MODE);
         }
 #endif
 
@@ -11770,7 +11770,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
         unsigned char hash1[32];
         unsigned char hash2[32];
         int i,j;
-        unsigned char which_asic_nonce;
+        unsigned char which_asic_nonce, which_core_nonce;
         uint64_t hashes = 0;
         static uint64_t pool_diff = 0, net_diff = 0;
         static uint64_t pool_diff_bit = 0, net_diff_bit = 0;
@@ -11855,7 +11855,8 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
         if(i >= pool_diff_bit/32)
         {
             which_asic_nonce = (nonce >> (24 + dev->check_bit)) & 0xff;
-            applog(LOG_DEBUG,"%s: chain %d which_asic_nonce %d ", __FUNCTION__, chain_id, which_asic_nonce);
+            which_core_nonce = (nonce & 0x7f);
+            applog(LOG_NOTICE,"%s: chain %d which_asic_nonce %d which_core_nonce %d", __FUNCTION__, chain_id, which_asic_nonce, which_core_nonce);
             dev->chain_asic_nonce[chain_id][which_asic_nonce]++;
             if(be32toh(hash2_32[6 - pool_diff_bit/32]) < ((uint32_t)0xffffffff >> (pool_diff_bit%32)))
             {

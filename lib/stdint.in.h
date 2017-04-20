@@ -44,16 +44,16 @@
 
 #if @HAVE_STDINT_H@
 # if defined __sgi && ! defined __c99
-   /* Bypass IRIX's <stdint.h> if in C89 mode, since it merely annoys users
-      with "This header file is to be used only for c99 mode compilations"
-      diagnostics.  */
+/* Bypass IRIX's <stdint.h> if in C89 mode, since it merely annoys users
+   with "This header file is to be used only for c99 mode compilations"
+   diagnostics.  */
 #  define __STDINT_H__
 # endif
-  /* Other systems may have an incomplete or buggy <stdint.h>.
-     Include it before <inttypes.h>, since any "#include <stdint.h>"
-     in <inttypes.h> would reinclude us, skipping our contents because
-     _@GUARD_PREFIX@_STDINT_H is defined.
-     The include_next requires a split double-inclusion guard.  */
+/* Other systems may have an incomplete or buggy <stdint.h>.
+   Include it before <inttypes.h>, since any "#include <stdint.h>"
+   in <inttypes.h> would reinclude us, skipping our contents because
+   _@GUARD_PREFIX@_STDINT_H is defined.
+   The include_next requires a split double-inclusion guard.  */
 # @INCLUDE_NEXT@ @NEXT_STDINT_H@
 #endif
 
@@ -74,20 +74,20 @@
 #include <limits.h>
 
 #if @HAVE_INTTYPES_H@
-  /* In OpenBSD 3.8, <inttypes.h> includes <machine/types.h>, which defines
-     int{8,16,32,64}_t, uint{8,16,32,64}_t and __BIT_TYPES_DEFINED__.
-     <inttypes.h> also defines intptr_t and uintptr_t.  */
+/* In OpenBSD 3.8, <inttypes.h> includes <machine/types.h>, which defines
+   int{8,16,32,64}_t, uint{8,16,32,64}_t and __BIT_TYPES_DEFINED__.
+   <inttypes.h> also defines intptr_t and uintptr_t.  */
 # include <inttypes.h>
 #elif @HAVE_SYS_INTTYPES_H@
-  /* Solaris 7 <sys/inttypes.h> has the types except the *_fast*_t types, and
-     the macros except for *_FAST*_*, INTPTR_MIN, PTRDIFF_MIN, PTRDIFF_MAX.  */
+/* Solaris 7 <sys/inttypes.h> has the types except the *_fast*_t types, and
+   the macros except for *_FAST*_*, INTPTR_MIN, PTRDIFF_MIN, PTRDIFF_MAX.  */
 # include <sys/inttypes.h>
 #endif
 
 #if @HAVE_SYS_BITYPES_H@ && ! defined __BIT_TYPES_DEFINED__
-  /* Linux libc4 >= 4.6.7 and libc5 have a <sys/bitypes.h> that defines
-     int{8,16,32,64}_t and __BIT_TYPES_DEFINED__.  In libc5 >= 5.2.2 it is
-     included by <sys/types.h>.  */
+/* Linux libc4 >= 4.6.7 and libc5 have a <sys/bitypes.h> that defines
+   int{8,16,32,64}_t and __BIT_TYPES_DEFINED__.  In libc5 >= 5.2.2 it is
+   included by <sys/types.h>.  */
 # include <sys/bitypes.h>
 #endif
 
@@ -498,8 +498,8 @@ typedef int _verify_intmax_size[sizeof (intmax_t) == sizeof (uintmax_t)
    <wchar.h> -> <stdio.h> -> <getopt.h> -> <stdlib.h>, and the latter includes
    <stdint.h> and assumes its types are already defined.  */
 #if @HAVE_WCHAR_H@ && ! (defined WCHAR_MIN && defined WCHAR_MAX)
-  /* BSD/OS 4.0.1 has a bug: <stddef.h>, <stdio.h> and <time.h> must be
-     included before <wchar.h>.  */
+/* BSD/OS 4.0.1 has a bug: <stddef.h>, <stdio.h> and <time.h> must be
+   included before <wchar.h>.  */
 # include <stddef.h>
 # include <stdio.h>
 # include <time.h>
