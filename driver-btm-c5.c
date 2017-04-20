@@ -2549,6 +2549,11 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
         return ret;
     }
 
+void set_Hardware_version(unsigned int value)
+{
+	*((unsigned int *)(axi_fpga_addr + HARDWARE_VERSION)) = value;
+}
+
     int get_fan_speed(unsigned char *fan_id, unsigned int *fan_speed)
     {
         int ret = -1;
@@ -6108,6 +6113,11 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
             set_PWM(MAX_PWM_PERCENT);
         }
 
+#ifdef T9_18
+	// config fpga into T9+ mode
+	set_Hardware_version(0x80000000);
+#endif
+
         set_nonce2_and_job_id_store_address(PHY_MEM_NONCE2_JOBID_ADDRESS);
         set_job_start_address(PHY_MEM_JOB_START_ADDRESS_1);
         //check chain
@@ -9439,6 +9449,11 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
             set_PWM(MAX_PWM_PERCENT);
         }
 
+#ifdef T9_18
+	// config fpga into T9+ mode
+	set_Hardware_version(0x80000000);
+#endif
+
         dev->baud=DEFAULT_BAUD_VALUE;   // need set default value as init value
 
         set_nonce2_and_job_id_store_address(PHY_MEM_NONCE2_JOBID_ADDRESS);
@@ -10101,6 +10116,11 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
 #endif
             set_PWM(MAX_PWM_PERCENT);
         }
+
+#ifdef T9_18
+	// config fpga into T9+ mode
+	set_Hardware_version(0x80000000);
+#endif
 
 #ifdef DEBUG_PRINT_T9_PLUS_PIC_HEART_INFO
         set_red_led(false); // close red led
@@ -11856,7 +11876,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
         {
             which_asic_nonce = (nonce >> (24 + dev->check_bit)) & 0xff;
             which_core_nonce = (nonce & 0x7f);
-            applog(LOG_NOTICE,"%s: chain %d which_asic_nonce %d which_core_nonce %d", __FUNCTION__, chain_id, which_asic_nonce, which_core_nonce);
+            applog(LOG_DEBUG,"%s: chain %d which_asic_nonce %d which_core_nonce %d", __FUNCTION__, chain_id, which_asic_nonce, which_core_nonce);
             dev->chain_asic_nonce[chain_id][which_asic_nonce]++;
             if(be32toh(hash2_32[6 - pool_diff_bit/32]) < ((uint32_t)0xffffffff >> (pool_diff_bit%32)))
             {
