@@ -10457,7 +10457,7 @@ void set_Hardware_version(unsigned int value)
 #endif
 
         if(opt_multi_version)
-            set_dhash_acc_control(get_dhash_acc_control() & (~OPERATION_MODE) | VIL_MIDSTATE_NUMBER(1) | VIL_MODE  & (~NEW_BLOCK) & (~RUN_BIT));
+            set_dhash_acc_control(get_dhash_acc_control() & (~OPERATION_MODE) & (~ VIL_MIDSTATE_NUMBER(0xf)) | VIL_MIDSTATE_NUMBER(1) | VIL_MODE  & (~NEW_BLOCK) & (~RUN_BIT));
         cgsleep_ms(10);
 
         //set core number
@@ -10683,7 +10683,7 @@ void set_Hardware_version(unsigned int value)
 #else
         //set testpatten timeout , dev->timeout*0.1
         if(opt_multi_version)
-            set_time_out_control((((dev->timeout/10) * opt_multi_version) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
+            set_time_out_control((((dev->timeout/10) * 1 /*opt_multi_version*/) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
         else
             set_time_out_control(((dev->timeout/10) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
 #endif
@@ -10879,13 +10879,13 @@ void set_Hardware_version(unsigned int value)
 #ifdef FASTER_TESTPATTEN
         //set real timeout back
         if(opt_multi_version)
-            set_time_out_control((((dev->timeout/10) * opt_multi_version) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
+            set_time_out_control((((dev->timeout/10) * 1 /*opt_multi_version*/) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
         else
             set_time_out_control(((dev->timeout/10) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
 #else
         //set real timeout back
         if(opt_multi_version)
-            set_time_out_control(((dev->timeout * opt_multi_version) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
+            set_time_out_control(((dev->timeout * 1 /*opt_multi_version*/) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
         else
             set_time_out_control(((dev->timeout) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
 #endif
@@ -10941,7 +10941,7 @@ void set_Hardware_version(unsigned int value)
 
 #ifdef FASTER_TESTPATTEN
                         if(opt_multi_version)
-                            set_time_out_control((((dev->timeout/10) * opt_multi_version) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
+                            set_time_out_control((((dev->timeout/10) * 1 /*opt_multi_version*/) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
                         else
                             set_time_out_control(((dev->timeout/10) & MAX_TIMEOUT_VALUE) | TIME_OUT_VALID);
 #endif
@@ -11417,20 +11417,20 @@ void set_Hardware_version(unsigned int value)
             if(!opt_multi_version)
             {
                 set_dhash_acc_control((unsigned int)get_dhash_acc_control() | NEW_BLOCK );
-                set_dhash_acc_control((unsigned int)get_dhash_acc_control() | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT | OPERATION_MODE);
+                set_dhash_acc_control((unsigned int)get_dhash_acc_control() & (~ VIL_MIDSTATE_NUMBER(0xf)) | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT | OPERATION_MODE);
             }
             else
             {
                 set_dhash_acc_control((unsigned int)get_dhash_acc_control() | NEW_BLOCK );
-                set_dhash_acc_control((unsigned int)get_dhash_acc_control() | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT | OPERATION_MODE |VIL_MODE);
+                set_dhash_acc_control((unsigned int)get_dhash_acc_control() & (~ VIL_MIDSTATE_NUMBER(0xf)) | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT | OPERATION_MODE |VIL_MODE);
             }
         }
         else
         {
             if(!opt_multi_version)
-                set_dhash_acc_control((unsigned int)get_dhash_acc_control() | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT| OPERATION_MODE );
+                set_dhash_acc_control((unsigned int)get_dhash_acc_control() & (~ VIL_MIDSTATE_NUMBER(0xf)) | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT| OPERATION_MODE );
             else
-                set_dhash_acc_control((unsigned int)get_dhash_acc_control() | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT| OPERATION_MODE |VIL_MODE);
+                set_dhash_acc_control((unsigned int)get_dhash_acc_control() & (~ VIL_MIDSTATE_NUMBER(0xf)) | VIL_MIDSTATE_NUMBER(opt_multi_version)| RUN_BIT| OPERATION_MODE |VIL_MODE);
         }
 #endif
 
