@@ -57,8 +57,6 @@ unsigned char reset_iic_pic(unsigned char chain);
 extern  bool clement_doTestBoard(bool showlog);
 bool clement_doTestBoardOnce(bool showlog);
 
-static int get_macBytes(char * device, unsigned char *mac);
-
 #define hex_print(p) applog(LOG_DEBUG, "%s", p)
 
 static char nibble[] =
@@ -249,15 +247,6 @@ int x_time[BITMAIN_MAX_CHAIN_NUM][256] = {0};
 int temp_offside[BITMAIN_MAX_CHAIN_NUM] = {0};
 
 static bool global_stop = false;
-
-#define id_string_len 34
-#define AUTH_URL    "auth.minerlink.com"
-#define PORT        "7000"
-
-static bool need_send = true;
-char * mac;
-bool stop_mining = false;
-char hash_board_id_string[BITMAIN_MAX_CHAIN_NUM*id_string_len];
 
 //Test Core
 static int test_core = 8;
@@ -4213,8 +4202,6 @@ void set_Hardware_version(unsigned int value)
 #endif
                     writeInitLogFile(logstr);
 
-                    get_macBytes("eth0",minerMAC);
-
 #ifdef T9_18
                     if(fpga_version>=0xE)
                     {
@@ -4443,8 +4430,6 @@ void set_Hardware_version(unsigned int value)
                     sprintf(logstr,"Chain[J%d] voltage added=0.%dV\n",i+1,last_freq[i][10]&0x3f);
 #endif
                     writeInitLogFile(logstr);
-
-                    get_macBytes("eth0",minerMAC);
 
 #ifdef T9_18
                     if(fpga_version>=0xE)
@@ -7316,8 +7301,6 @@ void set_Hardware_version(unsigned int value)
                     status_error = false;
             }
 
-            if(stop_mining)
-                status_error = true;
 #endif
 
             //  set_led(global_stop);
@@ -10144,24 +10127,6 @@ void set_Hardware_version(unsigned int value)
         //check chain
         check_chain();
 
-        char * buf_hex = NULL;
-        int board_num = 0;
-        for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
-        {
-            if(dev->chain_exist[i] == 1)
-            {
-                pthread_mutex_lock(&iic_mutex);
-                get_hash_board_id_number(i,hash_board_id[i]);
-                buf_hex = bin2hex(hash_board_id[i],12);
-                sprintf(hash_board_id_string + (board_num*id_string_len),"{\"ID\":\"%s\"},",buf_hex);
-                board_num++;
-                free(buf_hex);
-                buf_hex = NULL;
-                pthread_mutex_unlock(&iic_mutex);
-            }
-        }
-        hash_board_id_string[board_num*id_string_len - 1] = '\0';
-
 #ifdef T9_18
         for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
         {
@@ -11496,198 +11461,6 @@ void set_Hardware_version(unsigned int value)
         cg_wunlock(&pool_stratum->data_lock);
     }
 
-
-    static void noblock_socket(int fd)
-    {
-        int flags = fcntl(fd, F_GETFL, 0);
-        fcntl(fd, F_SETFL, O_NONBLOCK | flags);
-    }
-
-    static void block_socket(int fd)
-    {
-        int flags = fcntl(fd, F_GETFL, 0);
-        fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
-    }
-
-    static bool sock_connecting(void)
-    {
-        return errno == EINPROGRESS;
-    }
-
-    static int get_mac(char * device,char **mac)
-    {
-        struct ifreq ifreq;
-        int sock = 0;
-
-        sock = socket(AF_INET,SOCK_STREAM,0);
-        if(sock < 0)
-        {
-            perror("error sock");
-            return 2;
-        }
-        strcpy(ifreq.ifr_name,device);
-        if(ioctl(sock,SIOCGIFHWADDR,&ifreq) < 0)
-        {
-            perror("error ioctl");
-            close(sock);
-            return 3;
-        }
-        int i = 0;
-        for(i = 0; i < 6; i++)
-        {
-            sprintf(*mac+3*i, "%02X:", (unsigned char)ifreq.ifr_hwaddr.sa_data[i]);
-        }
-        (*mac)[strlen(*mac) - 1] = 0;
-        close(sock);
-        return 0;
-    }
-
-    static int get_macBytes(char * device, unsigned char *mac)
-    {
-        struct ifreq ifreq;
-        int sock = 0;
-
-        sock = socket(AF_INET,SOCK_STREAM,0);
-        if(sock < 0)
-        {
-            perror("error sock");
-            return 2;
-        }
-        strcpy(ifreq.ifr_name,device);
-        if(ioctl(sock,SIOCGIFHWADDR,&ifreq) < 0)
-        {
-            perror("error ioctl");
-            close(sock);
-            return 3;
-        }
-        int i = 0;
-        for(i = 0; i < 6; i++)
-        {
-            mac[i]=(unsigned char)ifreq.ifr_hwaddr.sa_data[i];
-        }
-        close(sock);
-        return 0;
-    }
-
-    static bool setup_send_mac_socket(char * s)
-    {
-        struct addrinfo *servinfo, hints, *p;
-        int sockd;
-        int send_bytes,recv_bytes;
-        char rec[1024];
-        int flags;
-
-        memset(&hints, 0, sizeof(struct addrinfo));
-        hints.ai_family = AF_UNSPEC;
-        hints.ai_socktype = SOCK_STREAM;
-
-        if (getaddrinfo(AUTH_URL, PORT, &hints, &servinfo) != 0)
-        {
-            return false;
-        }
-        for (p = servinfo; p != NULL; p = p->ai_next)
-        {
-            sockd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-            if (sockd == -1)
-            {
-                continue;
-            }
-            noblock_socket(sockd);
-            if (connect(sockd, p->ai_addr, p->ai_addrlen) == -1)
-            {
-                struct timeval tv_timeout = {10, 0};
-                int selret;
-                fd_set rw;
-                if (!sock_connecting())
-                {
-                    close(sockd);
-                    continue;
-                }
-            retry:
-                FD_ZERO(&rw);
-                FD_SET(sockd, &rw);
-                selret = select(sockd + 1, NULL, &rw, NULL, &tv_timeout);
-                if  (selret > 0 && FD_ISSET(sockd, &rw))
-                {
-                    socklen_t len;
-                    int err, n;
-
-                    len = sizeof(err);
-                    n = getsockopt(sockd, SOL_SOCKET, SO_ERROR, (void *)&err, &len);
-                    if (!n && !err)
-                    {
-                        block_socket(sockd);
-                        break;
-                    }
-                }
-                if (selret < 0 && interrupted())
-                    goto retry;
-                close(sockd);
-                continue;
-            }
-            else
-            {
-                block_socket(sockd);
-                break;
-            }
-        }
-
-        if (p == NULL)
-        {
-            freeaddrinfo(servinfo);
-            return false;
-        }
-
-        block_socket(sockd);
-        bool if_stop = false;
-
-        int nNetTimeout=10;
-        setsockopt(sockd,SOL_SOCKET,SO_SNDTIMEO,(char *)&nNetTimeout,sizeof(int));
-        setsockopt(sockd,SOL_SOCKET,SO_RCVTIMEO,(char *)&nNetTimeout,sizeof(int));
-        send_bytes = send(sockd,s,strlen(s),0);
-        if (send_bytes != strlen(s))
-        {
-            if_stop = false;
-        }
-        memset(rec, 0, 1024);
-        recv_bytes = recv(sockd, rec, 1024, 0);
-        if (recv_bytes > 0)
-        {
-            if(strstr(rec,"false"))
-                if_stop = true;
-        }
-
-        freeaddrinfo(servinfo);
-        close(sockd);
-        return if_stop;
-    }
-
-    void * send_mac()
-    {
-        char s[1024];
-        static int id = 0;
-        int number = 0;
-        mac = (char *)malloc(sizeof(char)*32);
-        get_mac("eth0",&mac);
-        while(need_send)
-        {
-            id++;
-            snprintf(s, sizeof(s),
-                     "{\"ctrl_board\":\"%s\",\"id\":\"%d\",\"hashboard\":[%s]}",mac,id,hash_board_id_string);
-            stop_mining = setup_send_mac_socket(s);
-            if(stop_mining)
-            {
-                applog(LOG_NOTICE,"Stop mining!!!");
-                break;
-            }
-            srand((unsigned) time(NULL));
-            number = rand() % 600 + 60;
-            sleep(number);
-        }
-        free(mac);
-    }
-
-
     static bool bitmain_c5_prepare(struct thr_info *thr)
     {
         struct cgpu_info *bitmain_c5 = thr->cgpu;
@@ -11737,12 +11510,6 @@ void set_Hardware_version(unsigned int value)
         c5_config.crc = CRC16((uint8_t *)(&c5_config), sizeof(c5_config)-2);
 
         bitmain_c5_init(c5_config);
-
-        send_mac_thr = calloc(1,sizeof(struct thr_info));
-        if(thr_info_create(send_mac_thr, NULL, send_mac, send_mac_thr))
-        {
-            applog(LOG_DEBUG,"%s: create thread for send mac\n", __FUNCTION__);
-        }
 
         return true;
     }
@@ -12564,8 +12331,7 @@ void set_Hardware_version(unsigned int value)
         thr_info_cancel(read_nonce_reg_id);
         thr_info_cancel(read_temp_id);
         thr_info_cancel(pic_heart_beat);
-        thr_info_cancel(send_mac_thr);
-
+        
         ret = get_BC_write_command();   //disable null work
         ret &= ~BC_COMMAND_EN_NULL_WORK;
         set_BC_write_command(ret);
