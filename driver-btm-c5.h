@@ -1,3 +1,13 @@
+/*
+ * Copyright 2016-2017 Fazio Bai <yang.bai@bitmain.com>
+ * Copyright 2016-2017 Clement Duan <kai.duan@bitmain.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.  See COPYING for more details.
+ */
+
 #ifndef C5_H
 #define C5_H
 
@@ -67,7 +77,7 @@
 #define MIDSTATE_OFFSET                 0x20
 //DHASH_ACC_CONTROL
 #define VIL_MODE                        (1 << 15)
-#define VIL_MIDSTATE_NUMBER(value)      ((value &0x0f) << 8)
+#define VIL_MIDSTATE_NUMBER(value)      ((value & 0x0f) << 8)
 #define NEW_BLOCK                       (1 << 7)
 #define RUN_BIT                         (1 << 6)
 #define OPERATION_MODE                  (1 << 5)

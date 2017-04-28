@@ -1,9 +1,12 @@
-/************************************************************************
-    > File Name: main.c
-    > Author: ma6174
-    > Mail: ma6174@163.com
-    > Created Time: Mon 27 Oct 2014 06:38:35 PM PDT
- ************************************************************************/
+/*
+ * Copyright 2016-2017 Fazio Bai <yang.bai@bitmain.com>
+ * Copyright 2016-2017 Clement Duan <kai.duan@bitmain.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.  See COPYING for more details.
+ */
 #include "config.h"
 #include <assert.h>
 	 

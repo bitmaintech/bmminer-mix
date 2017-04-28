@@ -1,3 +1,12 @@
+/* Copyright 2016-2017 Fazio Bai <yang.bai@bitmain.com>
+ * Copyright 2016-2017 Clement Duan <kai.duan@bitmain.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.  See COPYING for more details.
+ */
+
 #include "config.h"
 #include <assert.h>
 
@@ -11475,37 +11484,37 @@ void set_Hardware_version(unsigned int value)
 
         struct init_config c5_config =
         {
-            .token_type = 0x51,
-            .version = 0,
-            .length = 26,
-            .reset  = 1,
-            .fan_eft = opt_bitmain_fan_ctrl,
-            .timeout_eft = 1,
-            .frequency_eft = 1,
-            .voltage_eft = 1,
-            .chain_check_time_eft  = 1,
-            .chip_config_eft         =1,
-            .hw_error_eft        =1,
-            .beeper_ctrl             =1,
-            .temp_ctrl           =1,
-            .chain_freq_eft      =1,
-            .reserved1           =0,
-            .reserved2 ={0},
-            .chain_num = 9,
-            .asic_num = 54,
-            .fan_pwm_percent = opt_bitmain_fan_pwm,
-            .temperature = 80,
-            .frequency = opt_bitmain_c5_freq,
-            .voltage = {0x07,0x25},
-            .chain_check_time_integer = 10,
-            .chain_check_time_fractions = 10,
-            .timeout_data_integer = 0,
-            .timeout_data_fractions = 0,
-            .reg_data = 0,
-            .chip_address = 0x04,
-            .reg_address= 0,
-            .chain_min_freq = 400,
-            .chain_max_freq = 600,
+            .token_type                     = 0x51,
+            .version                        = 0,
+            .length                         = 26,
+            .reset                          = 1,
+            .fan_eft                        = opt_bitmain_fan_ctrl,
+            .timeout_eft                    = 1,
+            .frequency_eft                  = 1,
+            .voltage_eft                    = 1,
+            .chain_check_time_eft           = 1,
+            .chip_config_eft                = 1,
+            .hw_error_eft                   = 1,
+            .beeper_ctrl                    = 1,
+            .temp_ctrl                      = 1,
+            .chain_freq_eft                 = 1,
+            .reserved1                      = 0,
+            .reserved2                      = {0},
+            .chain_num                      = 9,
+            .asic_num                       = 54,
+            .fan_pwm_percent                = opt_bitmain_fan_pwm,
+            .temperature                    = 80,
+            .frequency                      = opt_bitmain_c5_freq,
+            .voltage                        = {0x07,0x25},
+            .chain_check_time_integer       = 10,
+            .chain_check_time_fractions     = 10,
+            .timeout_data_integer           = 0,
+            .timeout_data_fractions         = 0,
+            .reg_data                       = 0,
+            .chip_address                   = 0x04,
+            .reg_address                    = 0,
+            .chain_min_freq                 = 400,
+            .chain_max_freq                 = 600,
         };
         c5_config.crc = CRC16((uint8_t *)(&c5_config), sizeof(c5_config)-2);
 
@@ -11901,14 +11910,14 @@ void set_Hardware_version(unsigned int value)
         for(i = 0; i < BITMAIN_MAX_FAN_NUM; i++)
         {
             char fan_name[12];
-            sprintf(fan_name,"fan%d",i+1);
+            sprintf(fan_name,"fan%d", i+1);
             root = api_add_uint(root, fan_name, &(dev->fan_speed_value[i]), copy_data);
         }
         root = api_add_uint8(root, "temp_num", &(dev->chain_num), copy_data);
         for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
         {
             char temp_name[12];
-            sprintf(temp_name,"temp%d",i+1);
+            sprintf(temp_name,"temp%d", i+1);
             root = api_add_int16(root, temp_name, &(dev->chain_asic_maxtemp[i][TEMP_POS_LOCAL]), copy_data);
         }
         for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
@@ -12152,7 +12161,6 @@ void set_Hardware_version(unsigned int value)
                     }
 
                     dev_sum_freq=((dev_sum_freq*1.0)/1000);
-
                     temp=(int)(dev_sum_freq*100);
                     dev_sum_freq=((temp*1.0)/100);
                     root = api_add_mhs(root, freq_sum, &dev_sum_freq, true);
@@ -12160,7 +12168,6 @@ void set_Hardware_version(unsigned int value)
                 else
                 {
                     dev_sum_freq=((dev_sum_freq*1.0)/1000);
-
                     temp=(int)(dev_sum_freq*100);
                     dev_sum_freq=((temp*1.0)/100);
                     root = api_add_mhs(root, freq_sum, &dev_sum_freq, true);
@@ -12174,7 +12181,6 @@ void set_Hardware_version(unsigned int value)
                     }
 
                     dev_sum_freq=((dev_sum_freq*1.0)/1000);
-
                     temp=(int)(dev_sum_freq*100);
                     dev_sum_freq=((temp*1.0)/100);
                     root = api_add_mhs(root, freq_sum, &dev_sum_freq, true);
@@ -12182,7 +12188,6 @@ void set_Hardware_version(unsigned int value)
                 else
                 {
                     dev_sum_freq=((dev_sum_freq*1.0)/1000);
-
                     temp=(int)(dev_sum_freq*100);
                     dev_sum_freq=((temp*1.0)/100);
                     root = api_add_mhs(root, freq_sum, &dev_sum_freq, true);
@@ -12192,7 +12197,6 @@ void set_Hardware_version(unsigned int value)
             else
             {
                 dev_sum_freq=((dev_sum_freq*1.0)/1000);
-
                 temp=(int)(dev_sum_freq*100);
                 dev_sum_freq=((temp*1.0)/100);
                 root = api_add_mhs(root, freq_sum, &dev_sum_freq, true);

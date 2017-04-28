@@ -1,4 +1,11 @@
-/* Copyright 2011-2015 Con Kolivas
+/*
+ * Copyright 2016-2017 Fazio <Bai yang.bai@bitmain.com>
+ * Copyright 2016-2017 Clement Duan <kai.duan@bitmain.com>
+ * Copyright 2016 Miguel Padilla
+ * Copyright 2011-2015 Con Kolivas
+ * Copyright 2011-2015 Andrew Smith
+ * Copyright 2011-2012 Luke Dashjr
+ * Copyright 2010 Jeff Garzik
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free

@@ -1,9 +1,12 @@
-/*************************************************************************
-    > File Name: driver-bitmain.h
-    > Author: ma6174
-    > Mail: ma6174@163.com
-    > Created Time: Tue 28 Oct 2014 08:16:35 PM PDT
- ************************************************************************/
+/*
+ * Copyright 2016-2017 Fazio Bai <yang.bai@bitmain.com>
+ * Copyright 2016-2017 Clement Duan <kai.duan@bitmain.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.  See COPYING for more details.
+ */
 #ifndef _CLEMENT_BITMAIN_H__
 #define _CLEMENT_BITMAIN_H__
 #include <stdbool.h>
