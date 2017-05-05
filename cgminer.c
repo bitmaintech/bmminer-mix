@@ -2,7 +2,7 @@
  * Copyright 2011-2015 Con Kolivas - Donations: 15qSxP1SQcUX3o4nhkfdbgyoWEFMomJ4rZ
  * Copyright 2011-2015 Andrew Smith - Donations: 1Jjk2LmktEQKnv8r2cZ9MvLiZwZ9gxabKm
  * Copyright 2011-2012 Luke Dashjr - Donations: 1NbRmS6a4dniwHHoSS9v3tEYUpP1Z5VVdL
- * Copyright 2010 Jeff Garzik - Donations: 
+ * Copyright 2010 Jeff Garzik - Donations: 1BrufViLKnSWtuWGkryPsKsxonV2NQ7Tcj
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
